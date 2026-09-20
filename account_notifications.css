@@ -86,7 +86,7 @@ a {
   width: 40px;
   height: 40px;
   min-height: 40px;
-  margin-bottom: 14px;
+  margin-bottom: 0;
   padding: 0;
   border: 1px solid rgba(128, 0, 0, .18);
   border-radius: 11px;
@@ -132,7 +132,7 @@ a {
 .notifications-main {
   width: min(760px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 28px 0 48px;
+  padding: 14px 0 48px;
 }
 
 .notifications-toolbar {
@@ -140,18 +140,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 26px;
-}
-
-.notifications-toolbar h2 {
-  font-size: 1.3rem;
-  font-weight: 800;
-}
-
-.notifications-toolbar p {
-  margin-top: 3px;
-  color: var(--slate-500);
-  font-size: .8rem;
+  margin-bottom: 16px;
 }
 
 .unread-count {
@@ -175,7 +164,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: -12px 0 22px;
+  margin: 0 0 22px;
 }
 
 .notification-filters {
@@ -233,11 +222,11 @@ a {
   opacity: .5;
 }
 
-.notification-group + .notification-group {
+.notification-group+.notification-group {
   margin-top: 26px;
 }
 
-.notification-group > h3 {
+.notification-group>h3 {
   margin: 0 0 10px 4px;
   color: var(--slate-500);
   font-size: .72rem;
@@ -391,9 +380,7 @@ a {
 }
 
 /* Keep controls from neighboring rows from showing through the open menu. */
-.full-notification-list.menu-active
-  .full-notification:not(.menu-open)
-  .notification-menu-trigger {
+.full-notification-list.menu-active .full-notification:not(.menu-open) .notification-menu-trigger {
   visibility: hidden;
   pointer-events: none;
 }
@@ -447,7 +434,7 @@ a {
   color: var(--slate-500);
 }
 
-.notifications-empty > i {
+.notifications-empty>i {
   display: block;
   margin-bottom: 12px;
   color: #d1d5db;
@@ -519,11 +506,11 @@ a {
 
   .notifications-main {
     width: min(100% - 24px, 760px);
-    padding-top: 22px;
+    padding-top: 12px;
   }
 
   .notifications-toolbar {
-    align-items: flex-start;
+    align-items: center;
   }
 
   .notification-controls {
@@ -532,15 +519,6 @@ a {
 
   .mark-all-button {
     justify-content: center;
-  }
-
-  .notifications-toolbar h2 {
-    font-size: 1.12rem;
-  }
-
-  .notifications-toolbar p {
-    max-width: 210px;
-    line-height: 1.4;
   }
 
   .full-notification {

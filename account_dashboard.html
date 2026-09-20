@@ -5,6 +5,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual" />
+  <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
   <title>Account Dashboard - BloodConnect</title>
   <script>
     (() => {
@@ -19,13 +21,13 @@
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@400;600;700;800&display=swap" />
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/account_dashboard.css?v=20260916skeleton2" />
+  <link rel="stylesheet" href="/account_dashboard.css?v=20260920scrollhistory" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="/recipient_donor_mobile_nav.css?v=20260907fix" />
   <link rel="stylesheet" href="/shared-selects.css?v=20260912a" />
-  <link rel="stylesheet" href="/request-form.css?v=20260914replacementfields" />
+  <link rel="stylesheet" href="/request-form.css?v=20260919statusbadges" />
   <link rel="stylesheet" href="/recipient-overview.css?v=20260913a" />
-  <link rel="stylesheet" href="/mobile-request-cards.css?v=20260914e" />
+  <link rel="stylesheet" href="/mobile-request-cards.css?v=20260920progressiconspace2" />
   <link rel="stylesheet" href="/blood-received-dialog.css?v=20260913a" />
 </head>
 
@@ -280,7 +282,7 @@
           </section>
 
           <div class="bento donor-dashboard-grid">
-            <div class="card">
+            <div class="card donor-profile-card">
               <div class="card-head">
                 <h3><i class="fa-solid fa-id-card"></i> Donor Profile</h3>
                 <span class="badge registered" id="donorLifecycleBadge">Registered</span>
@@ -321,12 +323,12 @@
               </div>
             </div>
 
-            <div class="card">
+            <div class="card donor-history-card">
               <div class="card-head">
                 <h3><i class="fa-solid fa-clock-rotate-left"></i> My Donation History</h3>
                 <span class="badge registered" id="donorHistoryCountBadge">0 recorded</span>
               </div>
-              <div class="card-body">
+              <div class="card-body donor-history-body">
                 <div class="donor-activity-list" id="donorDonationHistory">
                   <div class="skeleton-history-row"><span class="skeleton skeleton-circle" style="width:32px;height:32px;flex-shrink:0"></span><div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="skeleton skeleton-text" style="width:55%"></span><span class="skeleton skeleton-text-sm" style="width:38%"></span></div></div>
                   <div class="skeleton-history-row"><span class="skeleton skeleton-circle" style="width:32px;height:32px;flex-shrink:0"></span><div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="skeleton skeleton-text" style="width:50%"></span><span class="skeleton skeleton-text-sm" style="width:33%"></span></div></div>
@@ -858,6 +860,25 @@
             <i class="fa-solid fa-heart-pulse"></i> Respond / Offer Blood Donation
           </button>
         </div>
+        <div class="pledge-inline-confirm" id="pledgeUnsuccessfulInline" hidden>
+          <button type="button" class="pledge-inline-confirm__backdrop" onclick="closePledgeUnsuccessfulModal()" aria-label="Cancel unsuccessful pledge confirmation"></button>
+          <section class="pledge-inline-confirm__panel" role="dialog" aria-modal="true" aria-labelledby="pledgeUnsuccessfulTitle" aria-describedby="pledgeUnsuccessfulDescription">
+            <div class="pledge-inline-confirm__header">
+              <span><i class="fa-solid fa-user-xmark" aria-hidden="true"></i> Unsuccessful Donor Pledge</span>
+              <button type="button" onclick="closePledgeUnsuccessfulModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="pledge-inline-confirm__body">
+              <span class="pledge-inline-confirm__icon"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></span>
+              <h4 id="pledgeUnsuccessfulTitle">Mark this pledge unsuccessful?</h4>
+              <p id="pledgeUnsuccessfulDescription">Use this when the donor did not arrive or could not complete the donation. The pledge will be released and the request will remain available. This does not create donation history or medically defer the donor.</p>
+              <p id="pledgeUnsuccessfulMessage" class="pledge-inline-confirm__message" role="status" aria-live="polite"></p>
+            </div>
+            <div class="pledge-inline-confirm__actions">
+              <button type="button" class="pledge-inline-confirm__submit" id="confirmPledgeUnsuccessful">Mark unsuccessful</button>
+              <button type="button" class="pledge-inline-confirm__cancel" id="cancelPledgeUnsuccessful" onclick="closePledgeUnsuccessfulModal()">Cancel</button>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
 
@@ -1070,9 +1091,9 @@
 
   <!-- ==================== JS ==================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/supabase-client.js?v=20260915blooddrives"></script>
+  <script src="/supabase-client.js?v=20260920pledgereceipt"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/scripts/pages/account-dashboard.js?v=20260915bloodconnect"></script>
+  <script src="/scripts/pages/account-dashboard.js?v=20260920progresstones"></script>
   <script src="/pull-to-refresh.js?v=20260906n" defer></script>
 </body>
 

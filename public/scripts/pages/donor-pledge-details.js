@@ -6,6 +6,41 @@ let currentRequest = null;
 let currentDonor = null;
 let currentStep = 1;
 
+function showUncheckedHealthCriteriaNotice() {
+  const dialog = document.getElementById('healthCriteriaDialog');
+  const cancelButton = document.getElementById('cancelHealthCriteria');
+  if (!dialog || !cancelButton || typeof dialog.showModal !== 'function') {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      cancelButton.removeEventListener('click', cancelAction);
+      dialog.removeEventListener('cancel', cancelEvent);
+      dialog.removeEventListener('click', backdropAction);
+      if (dialog.open) dialog.close();
+      resolve();
+    };
+    const cancelAction = () => finish();
+    const cancelEvent = (event) => {
+      event.preventDefault();
+      finish();
+    };
+    const backdropAction = (event) => {
+      if (event.target === dialog) finish();
+    };
+
+    cancelButton.addEventListener('click', cancelAction);
+    dialog.addEventListener('cancel', cancelEvent);
+    dialog.addEventListener('click', backdropAction);
+    dialog.showModal();
+    cancelButton.focus();
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   initializePerkCheckboxes();
   await loadRequestAndDonorData();
@@ -290,9 +325,8 @@ async function handleConfirmPledge(event) {
   });
 
   if (!allEligible) {
-    if (!confirm('You have unchecked some health criteria. Are you sure you are currently fit and well-rested to donate blood today?')) {
-      return;
-    }
+    await showUncheckedHealthCriteriaNotice();
+    return;
   }
 
   // 2. Read form fields

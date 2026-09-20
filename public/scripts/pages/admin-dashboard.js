@@ -3323,6 +3323,11 @@ function openAdminRequestDetails(requestId) {
   const bloodType = normalizeBloodType(row.blood_type_needed || row.blood_type || 'O+');
   const units = Number(row.quantity || row.units_needed || 1);
   const isReplacement = row.request_type === 'replacement';
+  const isEmergencyDonor = row.request_type === 'emergency_donor';
+  const pledges = Array.isArray(row.pledges) ? row.pledges : [];
+  const activePledgedUnits = pledges
+    .filter((pledge) => ['pledged', 'request_fulfilled', 'recipient_confirmed'].includes(String(pledge.status).toLowerCase()))
+    .reduce((total, pledge) => total + Number(pledge.units_pledged || 1), 0);
   const isUrgent = isUrgentRequest(row);
   const urgencyStr = isUrgent ? 'Urgent' : 'Normal';
   const status = normalizeRequestStatus(row.status);
@@ -3358,6 +3363,25 @@ function openAdminRequestDetails(requestId) {
         ? `<a id="adminRequestDocumentLink" class="request-document-link" href="#" aria-disabled="true"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Preparing ${escapeHtml(verificationSupport.file_name || 'supporting document')}...</a>`
         : '<p style="margin-top:12px;margin-bottom:0;">No supporting document attached.</p>'}
     </section>`;
+  const pledgeStatusLabels = {
+    pledged: 'Active pledge',
+    request_fulfilled: 'Request fulfilled',
+    recipient_confirmed: 'Receipt confirmed',
+    unable_to_donate: 'Unable to donate',
+    cancelled: 'Cancelled'
+  };
+  const emergencyPledgeSection = isEmergencyDonor
+    ? `<section class="replacement-progress-panel">
+        <h4>Emergency donor pledges</h4>
+        <div class="replacement-progress-count">${activePledgedUnits} of ${units} ${status === 'fulfilled' ? 'recorded' : 'active'} pledge unit${units === 1 ? '' : 's'}</div>
+        <div class="replacement-confirmation-list">
+          ${pledges.length
+            ? pledges.map((pledge) => `<p class="replacement-confirmation-item"><strong>${escapeHtml(pledge.donor_name || 'Registered donor')}</strong> · ${escapeHtml(pledge.blood_type || 'Blood type unavailable')}<br><span>${escapeHtml(pledgeStatusLabels[String(pledge.status).toLowerCase()] || pledge.status || 'Pledged')} · ${escapeHtml(formatDateShort(pledge.pledged_at))}</span></p>`).join('')
+            : '<p class="replacement-confirmation-item">No donors have pledged yet.</p>'}
+        </div>
+        ${row.recipient_received_at ? '<p style="margin:10px 0 0;color:#166534;font-weight:700;"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Blood received was confirmed by the requester. Verify any individual donation before adding donor history.</p>' : ''}
+      </section>`
+    : '';
   const urgencyChipStyle = isUrgent
     ? 'background:#fff1f2;color:#be123c;border:1px solid #fecdd3;'
     : 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;';
@@ -3383,6 +3407,7 @@ function openAdminRequestDetails(requestId) {
       <div class="request-detail-field request-detail-field--wide"><span><i class="fa-regular fa-clock" aria-hidden="true"></i>Needed time</span><strong>${escapeHtml(neededTimeDisplay)}</strong></div>
     </div>
     <section class="request-detail-notes"><h4>Description / Notes</h4><p>${escapeHtml(descriptionNotes)}</p></section>
+    ${emergencyPledgeSection}
     ${privateSupportSection}
     ${row.request_type === 'replacement' ? `<section class="replacement-progress-panel">
       <h4>Facility-confirmed replacement donations</h4>
@@ -3470,9 +3495,16 @@ function renderRequestsSection() {
     const securedBags = Number(row.bags_secured ?? (status === 'fulfilled' ? units : (status === 'processing' ? Math.min(units, 1) : 0)));
     const campaign = Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : row.replacement_campaign;
     const isReplacement = row.request_type === 'replacement';
+    const isEmergencyDonor = row.request_type === 'emergency_donor';
+    const pledges = Array.isArray(row.pledges) ? row.pledges : [];
+    const activePledgedUnits = pledges
+      .filter((pledge) => ['pledged', 'request_fulfilled', 'recipient_confirmed'].includes(String(pledge.status).toLowerCase()))
+      .reduce((total, pledge) => total + Number(pledge.units_pledged || 1), 0);
     const statusSummaryStr = isReplacement
       ? `${Number(campaign?.pledged_units || 0)}/${Number(campaign?.target_units || units)} pledged · ${Number(campaign?.confirmed_units || 0)}/${Number(campaign?.target_units || units)} confirmed`
-      : `${securedBags}/${units} donor${units !== 1 ? 's' : ''} requested`;
+      : isEmergencyDonor
+        ? `${activePledgedUnits}/${units} donors pledged`
+        : `${securedBags}/${units} donor${units !== 1 ? 's' : ''} requested`;
     const communityLifecycle = getCommunityLifecycleInfo(row);
 
     const mobilizeBtn = communityLifecycle.status === 'active' && status === 'approved' && row.verification_status === 'verified'
@@ -3492,7 +3524,8 @@ function renderRequestsSection() {
                 ? '<span class="badge rejected">Expired</span>'
                 : `<span class="badge ${statusBadge.className}">${statusBadge.label}</span>${communityLifecycle.status === 'covered' ? '<span class="badge approved">Donors Pledged</span>' : ''}`}
             </div>
-${isReplacement ? `<p style="font-size:.78rem;color:#64748b;">${escapeHtml(statusSummaryStr)}</p>` : ''}
+            ${isReplacement || isEmergencyDonor ? `<p style="font-size:.78rem;color:#64748b;">${escapeHtml(statusSummaryStr)}</p>` : ''}
+            ${isEmergencyDonor && row.recipient_received_at ? '<p style="font-size:.74rem;color:#166534;font-weight:700;"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Blood received confirmed by requester</p>' : ''}
             <div style="font-size:.78rem;color:#64748b;margin-bottom:4px;">
               ${isReplacement ? `${units} replacement donor${units === 1 ? '' : 's'} · Any eligible blood type` : `${units} unit${units === 1 ? '' : 's'} of ${escapeHtml(bloodType)}`}${row.request_type === 'replacement' ? ' · Hospital replacement' : row.request_type === 'emergency_donor' ? ' · Emergency donor assistance' : ''}${communityLifecycle.status === 'active' && isUrgent ? ' · Urgent' : ''}
             </div>
@@ -5677,6 +5710,37 @@ function initNotificationsRealtime() {
 
     // ---- REQUEST STATUS CHANGED ----
     .on('postgres_changes', { event: 'UPDATE', schema: 'blood_bank', table: 'blood_request' }, payload => {
+      const current = payload.new || {};
+      const previous = payload.old || {};
+      if (['emergency_donor', 'replacement'].includes(current.request_type)
+          && current.recipient_received_at
+          && !previous.recipient_received_at) {
+        pushNotification({
+          key: `request_received_${current.request_id || current.id}`,
+          type: 'request',
+          title: 'Blood received confirmed',
+          body: current.request_type === 'replacement'
+            ? `The requester confirmed blood receipt for replacement request #${current.request_id || current.id}. Replacement donations still require facility verification.`
+            : `The requester marked emergency request #${current.request_id || current.id} as fulfilled. Verify any individual donation before adding donor history.`,
+          critical: false
+        });
+      }
+      refreshRequestsSection();
+      refreshOverviewStats();
+    })
+
+    // ---- EMERGENCY PLEDGE AVAILABILITY CHANGED ----
+    .on('postgres_changes', { event: 'UPDATE', schema: 'blood_bank', table: 'donor_pledge' }, payload => {
+      const pledge = payload.new || {};
+      if (pledge.status === 'unable_to_donate') {
+        pushNotification({
+          key: `pledge_unavailable_${pledge.pledge_id}`,
+          type: 'request',
+          title: 'Donor pledge released',
+          body: `A donor became unable to complete a pledge for request #${pledge.request_id}. The active pledge count was updated and the request remains open if help is still needed.`,
+          critical: false
+        });
+      }
       refreshRequestsSection();
       refreshOverviewStats();
     })

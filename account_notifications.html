@@ -4,9 +4,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
   <title>Notifications - BloodConnect</title>
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="account_notifications.css?v=20260827o" />
 </head>
@@ -24,16 +27,12 @@
   </header>
 
   <main class="notifications-main">
-    <a class="back-button notification-back-button" href="account_dashboard.html" aria-label="Back to Recipient Overview">
-      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-      <span>Back</span>
-    </a>
-
     <div class="notifications-toolbar">
-      <div>
-        <h2>All Notifications</h2>
-        <p>Your latest activity and important updates</p>
-      </div>
+      <a class="back-button notification-back-button" href="account_dashboard.html"
+        aria-label="Back to Recipient Overview">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        <span>Back</span>
+      </a>
       <span class="unread-count" id="unreadCount"><i class="fa-solid fa-circle" aria-hidden="true"></i> 0 unread</span>
     </div>
 
@@ -51,7 +50,8 @@
     <section class="notification-group" aria-labelledby="todayHeading">
       <h3 id="todayHeading">Today</h3>
       <div class="full-notification-list" id="todayNotificationList">
-        <article class="full-notification" data-id="match-found" data-target="recipient_donor_map.html" tabindex="0" role="link">
+        <article class="full-notification" data-id="match-found" data-target="recipient_donor_map.html" tabindex="0"
+          role="link">
           <div class="notification-icon match"><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i></div>
           <div class="notification-content">
             <div class="notification-title-row">
@@ -67,7 +67,8 @@
     <section class="notification-group" aria-labelledby="earlierHeading">
       <h3 id="earlierHeading">Earlier</h3>
       <div class="full-notification-list" id="earlierNotificationList">
-        <article class="full-notification" data-id="request-approved" data-target="account_dashboard.html#section-requests" tabindex="0" role="link">
+        <article class="full-notification" data-id="request-approved"
+          data-target="account_dashboard.html#section-requests" tabindex="0" role="link">
           <div class="notification-icon approved"><i class="fa-solid fa-circle-check" aria-hidden="true"></i></div>
           <div class="notification-content">
             <div class="notification-title-row">
@@ -78,7 +79,8 @@
           </div>
         </article>
 
-        <article class="full-notification" data-id="blood-drive-reminder" data-target="account_dashboard.html#section-drives" tabindex="0" role="link">
+        <article class="full-notification" data-id="blood-drive-reminder"
+          data-target="account_dashboard.html#section-drives" tabindex="0" role="link">
           <div class="notification-icon drive"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i></div>
           <div class="notification-content">
             <div class="notification-title-row">
@@ -89,7 +91,8 @@
           </div>
         </article>
 
-        <article class="full-notification" data-id="request-submitted" data-target="account_dashboard.html#section-requests" tabindex="0" role="link">
+        <article class="full-notification" data-id="request-submitted"
+          data-target="account_dashboard.html#section-requests" tabindex="0" role="link">
           <div class="notification-icon info"><i class="fa-solid fa-file-circle-check" aria-hidden="true"></i></div>
           <div class="notification-content">
             <div class="notification-title-row">
@@ -100,8 +103,10 @@
           </div>
         </article>
 
-        <article class="full-notification" data-id="request-fulfilled" data-target="account_dashboard.html#section-requests" tabindex="0" role="link">
-          <div class="notification-icon fulfilled"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i></div>
+        <article class="full-notification" data-id="request-fulfilled"
+          data-target="account_dashboard.html#section-requests" tabindex="0" role="link">
+          <div class="notification-icon fulfilled"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i>
+          </div>
           <div class="notification-content">
             <div class="notification-title-row">
               <h4>Request fulfilled</h4>
@@ -126,7 +131,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/supabase-client.js?v=20260914notifications"></script>
-  <script src="/account_notifications.js?v=20260916driveroute"></script>
+  <script src="/account_notifications.js?v=20260920pledgereceipt"></script>
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>
 

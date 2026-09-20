@@ -1,7 +1,5 @@
 /* Scoped to creation; edit/profile forms keep their existing layouts. */
 .request-arrangement-text { display: block; margin: 3px 0; color: #78656b; font-size: .76rem; line-height: 1.4; }
-.feed-status-pill.pending { background: #fbf2f3; color: #800000; border: 1px solid #efd7dc; }
-.feed-status-pill.rejected { background: #fef2f2; color: #991b1b; }
 #requestModal .modal { width: 620px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; overflow: hidden; }
 #requestModal .modal-header { flex-shrink: 0; padding: 20px 24px; background: #fff; border-bottom: 1px solid #f0e0e3; }
 #requestModal .modal-header h3 { font-size: 1.05rem; }

@@ -13,9 +13,14 @@
 .my-request-card .feed-desc-text { color: #493438; }
 .my-request-card .my-request-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 12px; }
 .my-request-card .my-request-progress span { display: flex; align-items: center; gap: 5px; padding: 8px; border: 1px solid #efdcdf; border-radius: 9px; background: #fff; font-size: .74rem; line-height: 1.35; }
-.my-request-card .my-request-progress span:last-child { border-color: #cde9db; background: #f4fcf7; color: #176c45; }
+.my-request-card .my-request-progress span.progress-incomplete { border-color: #f5d36a; background: #fffbeb; color: #92400e; }
+.my-request-card .my-request-progress span.progress-complete { border-color: #9fdcbc; background: #f0fdf4; color: #166534; }
 .my-request-card .my-request-progress i { color: #991b1b; font-size: .72rem; }
-.my-request-card .my-request-progress span:last-child i { color: #137a4b; }
+.request-progress-summary i { margin-right: 7px; }
+.my-request-card .my-request-progress span.progress-incomplete i { color: #b45309; }
+.my-request-card .my-request-progress span.progress-complete i { color: #15803d; }
+.request-progress-summary > span.progress-incomplete { display: block; padding: 7px 9px; border: 1px solid #f5d36a; border-radius: 8px; background: #fffbeb; color: #92400e; }
+.request-progress-summary > span.progress-complete { display: block; padding: 7px 9px; border: 1px solid #9fdcbc; border-radius: 8px; background: #f0fdf4; color: #166534; }
 .my-request-card .my-request-progress strong { font-size: .82rem; }
 .my-request-card .btn-feed-details { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .my-request-card .btn-feed-details i { font-size: .72rem; transition: transform .2s ease; }

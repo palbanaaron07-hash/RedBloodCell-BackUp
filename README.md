@@ -9,7 +9,7 @@ npm ci
 npm run dev
 ```
 
-`index.html` (and `homie.html`) serves as the marketing home page for the system.
+`index.html` serves as the marketing home page and primary entry point for the system.
 
 ## Production verification
 

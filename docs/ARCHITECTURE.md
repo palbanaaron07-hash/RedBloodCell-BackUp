@@ -4,7 +4,7 @@
 
 ```text
 Browser
-  |-- root HTML routes (index.html, homie.html, dashboards, auth)
+  |-- root HTML routes (index.html, dashboards, auth)
   |-- classic page controllers (`public/scripts/pages`)
   |-- shared Supabase browser API (`/supabase-client.js`)
   |
@@ -33,7 +33,7 @@ Internal page logic may be split further as long as script order, global functio
 
 ## Frontend ownership
 
-- `index.html` and `homie.html`: marketing and system entry home page.
+- `index.html`: marketing and system entry home page.
 - Other root HTML files: operational multi-page application routes.
 - `public/scripts/pages/<page>.js`: controller for one operational page.
 - `public/supabase-client.js`: shared compatibility facade for authentication and domain operations.
@@ -45,8 +45,11 @@ The remaining small inline script in `account_dashboard.html` is intentionally k
 
 - `supabase/migrations/`: canonical forward migration history.
 - `supabase/functions/`: server-side privileged functions.
-- root `supabase-*.sql`: historical/manual recovery patches. Do not apply them blindly after migrations; confirm deployed schema state first.
+- `sql/patches/`: historical/manual recovery SQL patches (formerly root `supabase-*.sql`). Do not apply them blindly after migrations; confirm deployed schema state first.
+- `sql/data.sql`: seed/reference data snapshot.
 - `api/`: legacy MySQL compatibility. Its session and database records can diverge from Supabase, so new workflows should use Supabase unless a compatibility requirement is explicit.
+- `docs/`: project documentation including architecture, system context, and setup guides.
+
 
 ## Refactoring rules
 

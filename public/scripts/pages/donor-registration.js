@@ -9,7 +9,7 @@
     const submitButton = donorForm.querySelector('.submit-btn');
     const registrationUrl = new URL(window.location.href);
     const requestedReturn = registrationUrl.searchParams.get('return') || 'account_dashboard.html#section-donor';
-    const safeReturnUrl = /^(?:patient_dashboard\.html|homie\.html)(?:[?#].*)?$/.test(requestedReturn)
+    const safeReturnUrl = /^(?:patient_dashboard\.html|home\.html)(?:[?#].*)?$/.test(requestedReturn)
       ? requestedReturn
       : 'account_dashboard.html#section-donor';
     let authenticatedAccount = null;

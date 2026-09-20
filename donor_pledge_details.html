@@ -4,6 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
   <title>Blood Donation Response & Screening Instructions - BloodConnect</title>
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -12,7 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Outfit:wght@400;500;600;700;800&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="donor_pledge_details.css?v=20260907d" />
+  <link rel="stylesheet" href="donor_pledge_details.css?v=20260920recttoast" />
   <link rel="stylesheet" href="/shared-selects.css?v=20260912a" />
 </head>
 
@@ -600,6 +602,26 @@
     </div>
   </main>
 
+  <!-- Health criteria confirmation -->
+  <dialog class="system-confirm-dialog" id="healthCriteriaDialog" aria-labelledby="healthCriteriaTitle" aria-describedby="healthCriteriaMessage">
+    <div class="system-confirm-dialog__header">
+      <span class="system-confirm-dialog__icon" aria-hidden="true">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </span>
+      <div>
+        <span class="system-confirm-dialog__eyebrow">Health check</span>
+        <h2 id="healthCriteriaTitle">Complete all health criteria</h2>
+      </div>
+    </div>
+    <div class="system-confirm-dialog__body">
+      <p id="healthCriteriaMessage">You must check every health criterion before you can continue with your donor pledge.</p>
+      <p class="system-confirm-dialog__note"><i class="fa-solid fa-shield-heart" aria-hidden="true"></i> A medical professional will still determine your eligibility before donation.</p>
+    </div>
+    <div class="system-confirm-dialog__actions">
+      <button type="button" class="system-confirm-dialog__cancel" id="cancelHealthCriteria">Review criteria</button>
+    </div>
+  </dialog>
+
   <!-- Toast Notification -->
   <div class="toast-container" id="toastBox">
     <div class="toast-content">
@@ -611,7 +633,7 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/supabase-client.js?v=20260915supportpreferences"></script>
-  <script src="/scripts/pages/donor-pledge-details.js?v=20260915bloodconnect"></script>
+  <script src="/scripts/pages/donor-pledge-details.js?v=20260920requiredcriteria"></script>
 </body>
 
 

@@ -1,8 +1,7 @@
-const CACHE_NAME = 'bloodconnect-pwa-v24';
+const CACHE_NAME = 'bloodconnect-pwa-v26';
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/homie.html',
   '/learn_more.html',
   '/login.html',
   '/register.html',

@@ -1799,6 +1799,39 @@ function normalizeCommunityRequestStatus(row) {
   return storedStatus === 'covered' ? 'covered' : 'active';
 }
 
+async function listRequestPledges(requestIds = []) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const ids = [...new Set((requestIds || [])
+    .map((id) => Number(id))
+    .filter((id) => Number.isInteger(id) && id > 0))];
+  if (!ids.length) return { data: [], error: null };
+
+  const { data, error } = await bloodBank()
+    .from('donor_pledge')
+    .select('pledge_id, request_id, donor_id, units_pledged, status, pledged_at, updated_at, donor:donor_id(first_name,middle_name,last_name,blood_type)')
+    .in('request_id', ids)
+    .order('pledged_at', { ascending: true });
+
+  if (error) return { data: [], error: mapError(error, 'Unable to load donor pledges.') };
+  return {
+    data: (data || []).map((row) => {
+      const donor = Array.isArray(row.donor) ? row.donor[0] : (row.donor || {});
+      return {
+        pledge_id: row.pledge_id,
+        request_id: row.request_id,
+        donor_id: row.donor_id,
+        donor_name: [donor.first_name, donor.middle_name, donor.last_name].filter(Boolean).join(' ') || 'Registered donor',
+        blood_type: normalizeBloodType(donor.blood_type || ''),
+        units_pledged: Number(row.units_pledged || 1),
+        status: row.status || 'pledged',
+        pledged_at: row.pledged_at || null,
+        updated_at: row.updated_at || null
+      };
+    }),
+    error: null
+  };
+}
+
 async function listMyBloodRequests() {
   if (!SUPABASE_CONFIGURED) return configError();
   const {
@@ -1899,10 +1932,21 @@ async function listMyBloodRequests() {
     };
   });
 
-  const supportResult = await listRequestVerificationSupport(normalized.map((request) => request.id));
+  const requestIds = normalized.map((request) => request.id);
+  const [supportResult, pledgeResult] = await Promise.all([
+    listRequestVerificationSupport(requestIds),
+    listRequestPledges(requestIds)
+  ]);
   const supportByRequest = new Map((supportResult.data || []).map((item) => [Number(item.request_id), item]));
+  const pledgesByRequest = new Map();
+  (pledgeResult.data || []).forEach((pledge) => {
+    const key = Number(pledge.request_id);
+    if (!pledgesByRequest.has(key)) pledgesByRequest.set(key, []);
+    pledgesByRequest.get(key).push(pledge);
+  });
   normalized.forEach((request) => {
     request.verification_support = supportByRequest.get(Number(request.id)) || null;
+    request.pledges = pledgesByRequest.get(Number(request.id)) || [];
   });
 
   return { data: normalized, error: null };
@@ -2172,6 +2216,24 @@ async function completeMyBloodRequest(requestId) {
   }
 
   return { data, error: null };
+}
+
+async function markMyRequestPledgeUnsuccessful(requestId, pledgeId) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const request = Number(requestId);
+  const pledge = Number(pledgeId);
+  if (!Number.isInteger(request) || request <= 0 || !Number.isInteger(pledge) || pledge <= 0) {
+    return { data: null, error: { message: 'A valid request and pledge are required.' } };
+  }
+
+  const { data, error } = await bloodBank().rpc('mark_my_request_pledge_unsuccessful', {
+    p_request_id: request,
+    p_pledge_id: pledge
+  });
+  return {
+    data,
+    error: error ? mapError(error, 'Unable to update this donor pledge.') : null
+  };
 }
 
 async function createBloodRequest(payload) {
@@ -3282,10 +3344,21 @@ async function getOverviewRecentRequests(limit = 100) {
         };
       });
 
-    const supportResult = await listRequestVerificationSupport(normalized.map((request) => request.request_id || request.id));
+    const requestIds = normalized.map((request) => request.request_id || request.id);
+    const [supportResult, pledgeResult] = await Promise.all([
+      listRequestVerificationSupport(requestIds),
+      listRequestPledges(requestIds)
+    ]);
     const supportByRequest = new Map((supportResult.data || []).map((item) => [Number(item.request_id), item]));
+    const pledgesByRequest = new Map();
+    (pledgeResult.data || []).forEach((pledge) => {
+      const key = Number(pledge.request_id);
+      if (!pledgesByRequest.has(key)) pledgesByRequest.set(key, []);
+      pledgesByRequest.get(key).push(pledge);
+    });
     normalized.forEach((request) => {
       request.verification_support = supportByRequest.get(Number(request.request_id || request.id)) || null;
+      request.pledges = pledgesByRequest.get(Number(request.request_id || request.id)) || [];
     });
 
     return { data: normalized, error: null };

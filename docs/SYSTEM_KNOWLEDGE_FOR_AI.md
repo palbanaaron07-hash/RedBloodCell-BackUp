@@ -107,7 +107,7 @@ Browser / installed PWA
 
 | File | Purpose |
 |---|---|
-| `index.html`, `homie.html` | Public home/entry |
+| `index.html` | Public home/entry |
 | `learn_more.html` | Static system explanation |
 | `register.html` | Recipient/donor registration |
 | `login.html` | Login and role routing |

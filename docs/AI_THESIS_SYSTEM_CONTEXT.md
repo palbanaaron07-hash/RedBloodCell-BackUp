@@ -146,7 +146,7 @@ User browser
 
 The system uses a unified landing implementation:
 
-- `index.html` (and `homie.html`) is the standalone marketing home page and entry point.
+- `index.html` is the standalone marketing home page and entry point.
 
 ### 3.3 Back-end and data technologies
 
@@ -161,7 +161,7 @@ The system uses a unified landing implementation:
 
 | File | Purpose | Data status |
 |---|---|---|
-| `index.html`, `homie.html` | Public marketing home page | Static presentation/navigation |
+| `index.html` | Public marketing home page | Static presentation/navigation |
 | `learn_more.html` | System feature explanation | Static content |
 | `register.html` | Four-step account registration | Supabase-backed with best-effort PHP/MySQL sync |
 | `login.html` | Login and role-based routing | Supabase primary; PHP fallback |

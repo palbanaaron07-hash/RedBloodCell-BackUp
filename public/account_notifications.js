@@ -16,7 +16,8 @@
   function getNotificationPresentation(type) {
     const t = String(type || '').toLowerCase();
     if (t === 'donor_appeal') return { icon: 'fa-bell', style: 'warning' };
-    if (t === 'pledge_received' || t === 'request_fulfilled') return { icon: 'fa-hand-holding-heart', style: 'match' };
+    if (t === 'pledge_received' || t === 'request_fulfilled' || t === 'pledged_request_fulfilled' || t === 'request_still_needs_donors') return { icon: 'fa-hand-holding-heart', style: 'match' };
+    if (t === 'pledge_unavailable' || t === 'pledged_donor_unavailable' || t === 'pledge_unsuccessful') return { icon: 'fa-circle-exclamation', style: 'status' };
     if (t === 'request_updated' || t === 'request_approved') return { icon: 'fa-file-circle-check', style: 'info' };
     if (t.includes('drive') || t === 'blood_drive_scheduled' || t === 'blood_drive_reminder' || t === 'blood_drive_update') {
       return { icon: 'fa-calendar-check', style: 'drive' };

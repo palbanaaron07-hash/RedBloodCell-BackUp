@@ -2296,6 +2296,28 @@ body.desktop-sidebar-open .main {
   gap: 4px;
 }
 
+.request-fulfillment-attribution {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  gap: 5px;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.request-fulfillment-attribution.requester {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .feed-options-btn {
   background: none;
   border: none;
@@ -2397,38 +2419,58 @@ body.desktop-sidebar-open .main {
   transform: translateY(-1.5px);
 }
 
-.feed-status-pill.pending,
-.feed-status-pill.active {
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fde68a;
+.feed-status-pill.pending {
+  background: transparent;
+  color: #a16207;
+  border: 1px solid #a16207;
 }
 
-.feed-status-pill.approved,
+.feed-status-pill.active {
+  background: transparent;
+  color: #2563eb;
+  border: 1px solid #2563eb;
+}
+
+.feed-status-pill.approved {
+  background: transparent;
+  color: #15803d;
+  border: 1px solid #15803d;
+}
+
 .feed-status-pill.covered {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
+  background: transparent;
+  color: #7e22ce;
+  border: 1px solid #7e22ce;
 }
 
 .feed-status-pill.fulfilled {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background: transparent;
+  color: #0f766e;
+  border: 1px solid #0f766e;
 }
 
-.feed-status-pill.rejected,
-.feed-status-pill.cancelled,
+.feed-status-pill.rejected {
+  background: transparent;
+  color: #dc2626;
+  border: 1px solid #dc2626;
+}
+
+.feed-status-pill.cancelled {
+  background: transparent;
+  color: #e11d48;
+  border: 1px solid #e11d48;
+}
+
 .feed-status-pill.expired {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #64748b;
 }
 
 .feed-status-pill.needs_clarification {
-  background: #fff7ed;
-  color: #c2410c;
-  border: 1px solid #fed7aa;
+  background: transparent;
+  color: #ea580c;
+  border: 1px solid #ea580c;
 }
 
 /* 2-Column Info Grid */
@@ -2586,9 +2628,39 @@ body.desktop-sidebar-open .main {
 
 /* Community Detail Modal */
 .community-detail-modal-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   max-width: 580px;
+  max-height: calc(100dvh - 32px);
   overflow: hidden;
 }
+
+.community-detail-modal-box > .modal-header,
+.community-detail-modal-box > .modal-footer { flex: 0 0 auto; }
+.community-detail-modal-box > .modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+body.community-detail-open { position: fixed; width: 100%; overflow: hidden; overscroll-behavior: none; }
+
+.pledge-inline-confirm[hidden] { display: none; }
+.pledge-inline-confirm { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; padding: 18px; overflow: hidden; }
+.pledge-inline-confirm__backdrop { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: rgba(15, 23, 42, .58); backdrop-filter: blur(2px); cursor: default; }
+.pledge-inline-confirm__panel { position: relative; width: min(100%, 410px); max-height: calc(100% - 12px); overflow: auto; border: 1px solid #ead9dc; border-radius: 16px; background: #fff; box-shadow: 0 20px 50px rgba(15, 23, 42, .28); }
+.pledge-inline-confirm__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #f1e4e6; color: #334155; font-size: .83rem; font-weight: 800; }
+.pledge-inline-confirm__header span { display: flex; align-items: center; gap: 7px; }
+.pledge-inline-confirm__header span i { color: #800000; }
+.pledge-inline-confirm__header button { border: 0; background: transparent; color: #94a3b8; font-size: 1.1rem; cursor: pointer; }
+.pledge-inline-confirm__body { padding: 18px 20px 14px; text-align: center; }
+.pledge-inline-confirm__icon { display: grid; place-items: center; width: 44px; height: 44px; margin: 0 auto 14px; border-radius: 50%; background: #fee2e2; color: #b91c1c; }
+.pledge-inline-confirm__body h4 { margin: 0 0 10px; color: #334155; font-size: 1rem; }
+.pledge-inline-confirm__body > p:not(.pledge-inline-confirm__message) { margin: 0; color: #718096; font-size: .78rem; line-height: 1.55; }
+.pledge-inline-confirm__message { min-height: 18px; margin: 9px 0 0; color: #b91c1c; font-size: .76rem; font-weight: 700; }
+.pledge-inline-confirm__actions { display: grid; gap: 8px; padding: 12px 14px 14px; border-top: 1px solid #f1e4e6; }
+.pledge-inline-confirm__actions button { min-height: 40px; border-radius: 9px; font: inherit; font-size: .76rem; font-weight: 800; cursor: pointer; }
+.pledge-inline-confirm__submit { border: 1px solid #990000; background: #990000; color: #fff; }
+.pledge-inline-confirm__submit:hover:not(:disabled) { background: #750000; }
+.pledge-inline-confirm__cancel { border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
+.pledge-inline-confirm__actions button:disabled { cursor: wait; opacity: .65; }
 
 .community-detail-info-card {
   background: linear-gradient(145deg, #fffafa 0%, #fff 100%);
@@ -2698,10 +2770,8 @@ body.desktop-sidebar-open .main {
   background: #fff8f8;
 }
 
-.community-detail-progress .community-progress-card--confirmed {
-  border-color: #cde9db;
-  background: #f4fcf7;
-}
+.community-detail-progress .progress-incomplete { border-color: #f5d36a; background: #fffbeb; }
+.community-detail-progress .progress-complete { border-color: #9fdcbc; background: #f0fdf4; }
 
 .community-detail-progress span,
 .community-detail-progress strong {
@@ -2720,10 +2790,12 @@ body.desktop-sidebar-open .main {
   color: var(--accent);
 }
 
-.community-detail-progress .community-progress-card--confirmed span i,
-.community-detail-progress .community-progress-card--confirmed strong {
-  color: #137a4b;
-}
+.community-detail-progress .progress-incomplete span,
+.community-detail-progress .progress-incomplete span i,
+.community-detail-progress .progress-incomplete strong { color: #92400e; }
+.community-detail-progress .progress-complete span,
+.community-detail-progress .progress-complete span i,
+.community-detail-progress .progress-complete strong { color: #166534; }
 
 .community-detail-progress strong {
   color: #800000;
@@ -2784,9 +2856,15 @@ body.desktop-sidebar-open .main {
 .requester-donor-support > strong { display: flex; align-items: center; gap: 7px; color: #34506f; font-size: .82rem; }
 .requester-donor-support > strong i { color: #800000; }
 .requester-donor-support > p { margin: 8px 0 0; color: #64748b; }
-.requester-donor-support__pledge { display: block; padding: 8px 0; border-bottom: 1px solid #e4edf7; }
+.requester-donor-support__pledge { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #e4edf7; }
 .requester-donor-support__pledge:last-child { padding-bottom: 0; border-bottom: 0; }
 .requester-donor-support__pledge b { color: #334155; }
+.request-pledge-unsuccessful { flex: 0 0 auto; padding: 7px 10px; border: 1px solid #b45309; border-radius: 9px; background: transparent; color: #92400e; font: inherit; font-size: .72rem; font-weight: 750; cursor: pointer; }
+.request-pledge-unsuccessful:hover { background: #fffbeb; }
+
+@media (max-width: 520px) {
+  .requester-donor-support__pledge { align-items: flex-start; flex-direction: column; }
+}
 
 @media (max-width: 520px) {
   .community-detail-progress {
@@ -5370,7 +5448,7 @@ html[data-initial-section="help"] #section-help {
 }
 
 .donor-dashboard-grid {
-  align-items: start;
+  align-items: stretch;
 }
 
 .donor-profile-body {
@@ -5449,51 +5527,6 @@ html[data-initial-section="help"] #section-help {
 .availability-toggle:disabled {
   cursor: not-allowed;
   opacity: .58;
-}
-
-.donor-activity-list {
-  display: grid;
-  gap: 9px;
-}
-
-.donor-activity-item {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--slate-100);
-  border-radius: var(--radius-sm);
-  background: var(--slate-50);
-}
-
-.donor-activity-item>i {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.donor-activity-item strong {
-  display: block;
-  color: var(--slate-800);
-  font-size: .8rem;
-}
-
-.donor-activity-item span,
-.donor-activity-item time {
-  color: var(--slate-500);
-  font-size: .7rem;
-}
-
-.donor-empty-state {
-  padding: 24px 10px;
-  color: var(--slate-400);
-  font-size: .8rem;
-  text-align: center;
 }
 
 #donorLifecycleBadge.registered,
@@ -5713,6 +5746,23 @@ html[data-initial-section="help"] #section-help {
 /* ==========================================================================
    DONOR TRACKING & DONATION HISTORY STYLES
    ========================================================================== */
+
+.donor-profile-card,
+.donor-history-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.donor-history-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 18px 20px;
+  overflow: hidden;
+}
 
 /* Donor Activity History Item Cards */
 .donor-activity-item {

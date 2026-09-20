@@ -2026,6 +2026,7 @@ let activeRequestsTab = 'community';
 let activeCommunityFilter = 'all';
 let activeMyFilter = 'all';
 let selectedCommunityRequest = null;
+let communityDetailScrollPosition = 0;
 let ignoredCommunityIds = new Set();
 try {
   ignoredCommunityIds = new Set(JSON.parse(sessionStorage.getItem('veindrop_ignored_requests') || '[]'));
@@ -2138,6 +2139,11 @@ function getCommunityLifecycle(r) {
   return states[status] || states.active;
 }
 
+function getRequestProgressTone(current, target) {
+  const required = Math.max(1, Number(target) || 1);
+  return Number(current || 0) >= required ? 'progress-complete' : 'progress-incomplete';
+}
+
 function renderCommunityCard(r) {
   const isReplacement = r.request_type === 'replacement';
   const isUrgent = !isReplacement && (String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical');
@@ -2156,6 +2162,9 @@ function renderCommunityCard(r) {
       ? '<span class="request-arrangement-text">Emergency Donor Assistance</span>'
       : '');
   const campaign = r.replacement_campaign || {};
+  const replacementTarget = Number(campaign.target_units || units);
+  const replacementPledged = Number(campaign.pledged_units || 0);
+  const replacementConfirmed = Number(campaign.confirmed_units || 0);
   const progressText = isReplacement
     ? `${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)} donors pledged · ${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)} units confirmed`
     : '';
@@ -2210,7 +2219,7 @@ function renderCommunityCard(r) {
             <div class="feed-desc-section">
               <span class="feed-desc-label">Reason for request</span>
               <p class="feed-desc-text">${description}</p>
-              ${isReplacement ? `<div class="request-progress-summary"><span><strong>${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)}</strong> donors pledged</span><span><strong>${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)}</strong> units confirmed</span></div>` : ''}
+              ${isReplacement ? `<div class="request-progress-summary"><span class="${getRequestProgressTone(replacementPledged, replacementTarget)}"><strong>${replacementPledged}/${replacementTarget}</strong> donors pledged</span><span class="${getRequestProgressTone(replacementConfirmed, replacementTarget)}"><strong>${replacementConfirmed}/${replacementTarget}</strong> units confirmed</span></div>` : ''}
             </div>
           </div>
 
@@ -2318,18 +2327,29 @@ function openCommunityRequestDetails(reqId) {
   } else if (!ownRequest && lifecycle.status === 'active' && !bloodCompatible) {
     responseGuidance = `Your ${donorBloodType || 'registered'} blood type cannot donate red cells to a ${requestedBloodType} recipient.`;
   }
+  const emergencyPledges = Array.isArray(req.pledges) ? req.pledges : [];
+  const activeEmergencyPledgeUnits = emergencyPledges
+    .filter((pledge) => ['pledged', 'request_fulfilled', 'recipient_confirmed'].includes(String(pledge.status).toLowerCase()))
+    .reduce((total, pledge) => total + Number(pledge.units_pledged || 1), 0);
   const progressSummary = isReplacement
     ? `<div class="community-detail-progress" aria-label="Replacement donation progress">
-        <div class="community-progress-card community-progress-card--pledged">
+        <div class="community-progress-card community-progress-card--pledged ${getRequestProgressTone(pledgedUnits, targetUnits)}">
           <span><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i> Donor pledges</span>
           <strong>${pledgedUnits}/${targetUnits} unit${targetUnits !== 1 ? 's' : ''} pledged</strong>
         </div>
-        <div class="community-progress-card community-progress-card--confirmed">
+        <div class="community-progress-card community-progress-card--confirmed ${getRequestProgressTone(confirmedUnits, targetUnits)}">
           <span><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Facility-confirmed donations</span>
           <strong>${confirmedUnits}/${targetUnits} unit${targetUnits !== 1 ? 's' : ''} confirmed</strong>
         </div>
       </div>`
-    : '';
+    : req.request_type === 'emergency_donor' && ownRequest
+      ? `<div class="community-detail-progress" aria-label="Emergency donor pledge progress">
+          <div class="community-progress-card community-progress-card--pledged ${getRequestProgressTone(activeEmergencyPledgeUnits, units)}">
+            <span><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i> ${lifecycle.status === 'fulfilled' ? 'Recorded donor pledges' : 'Active donor pledges'}</span>
+            <strong>${activeEmergencyPledgeUnits}/${units} donor${activeEmergencyPledgeUnits === 1 ? '' : 's'} pledged</strong>
+          </div>
+        </div>`
+      : '';
   const verificationSupport = ownRequest ? req.verification_support : null;
   const requesterVerificationLabels = {
     uploaded_document: 'Supporting document reviewed',
@@ -2354,6 +2374,21 @@ function openCommunityRequestDetails(reqId) {
     ? `<section class="requester-donor-support" aria-labelledby="requesterDonorSupportTitle">
         <strong id="requesterDonorSupportTitle"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i> Donor support preferences</strong>
         <p id="requesterDonorSupportContent">Loading donor preferences...</p>
+      </section>`
+    : '';
+  const pledgeStatusLabels = {
+    pledged: 'Active pledge',
+    request_fulfilled: 'Request fulfilled',
+    recipient_confirmed: 'Receipt confirmed',
+    unable_to_donate: 'Unable to donate',
+    cancelled: 'Cancelled'
+  };
+  const requesterPledgeList = ownRequest && ['emergency_donor', 'replacement'].includes(req.request_type)
+    ? `<section class="requester-donor-support" aria-labelledby="requesterPledgeListTitle">
+        <strong id="requesterPledgeListTitle"><i class="fa-solid fa-users" aria-hidden="true"></i> Donors who pledged</strong>
+        ${emergencyPledges.length
+          ? emergencyPledges.map((pledge) => `<span class="requester-donor-support__pledge"><span><b>${escapeHtml(pledge.donor_name || 'Registered donor')}</b> · ${escapeHtml(pledge.blood_type || 'Blood type unavailable')} · ${escapeHtml(pledgeStatusLabels[String(pledge.status).toLowerCase()] || pledge.status || 'Pledged')}<br><small>Pledged ${escapeHtml(formatDateShort(pledge.pledged_at))}</small></span>${String(pledge.status).toLowerCase() === 'pledged' ? `<button type="button" class="request-pledge-unsuccessful" onclick="openPledgeUnsuccessfulModal(${Number(req.id || req.request_id)}, ${Number(pledge.pledge_id)})"><i class="fa-solid fa-user-xmark" aria-hidden="true"></i> Did not complete</button>` : ''}</span>`).join('')
+          : '<p>No donors have pledged yet.</p>'}
       </section>`
     : '';
 
@@ -2393,6 +2428,7 @@ function openCommunityRequestDetails(reqId) {
           </p>
         </section>
         ${progressSummary}
+        ${requesterPledgeList}
         ${privateSupportSummary}
         ${donorSupportSummary}
         <div class="community-response-guidance community-response-guidance--${lifecycle.status}">
@@ -2414,6 +2450,11 @@ function openCommunityRequestDetails(reqId) {
     pledgeButton.innerHTML = '<i class="fa-solid fa-heart-pulse"></i> Respond / Offer Blood Donation';
   }
   modal?.classList.add('active');
+  if (!document.body.classList.contains('community-detail-open')) {
+    communityDetailScrollPosition = window.scrollY || document.documentElement.scrollTop || 0;
+    document.body.style.top = `-${communityDetailScrollPosition}px`;
+    document.body.classList.add('community-detail-open');
+  }
   if (verificationSupport?.storage_path) preparePatientRequestDocument(verificationSupport);
   if (ownRequest) loadRequesterDonorSupportPreferences(req.id || req.request_id);
 }
@@ -2472,7 +2513,13 @@ async function preparePatientRequestDocument(support) {
 }
 
 function closeCommunityRequestDetailModal() {
+  closePledgeUnsuccessfulModal();
   document.getElementById('communityRequestDetailModal')?.classList.remove('active');
+  if (document.body.classList.contains('community-detail-open')) {
+    document.body.classList.remove('community-detail-open');
+    document.body.style.top = '';
+    window.scrollTo(0, communityDetailScrollPosition);
+  }
   selectedCommunityRequest = null;
 }
 
@@ -2596,7 +2643,7 @@ async function loadCommunityRequests() {
 function getRequestHeaderStatus(request, lifecycle) {
   const operational = String(request.operational_status || request.status_raw || '').toLowerCase();
   if (['cancelled', 'canceled'].includes(operational)) {
-    return { label: 'Cancelled', tone: 'rejected' };
+    return { label: 'Cancelled', tone: 'cancelled' };
   }
   if (['expired', 'fulfilled'].includes(lifecycle.status)) {
     return { label: lifecycle.label, tone: lifecycle.status };
@@ -2606,12 +2653,29 @@ function getRequestHeaderStatus(request, lifecycle) {
     return { label: 'Not approved', tone: 'rejected' };
   }
   if (verification === 'needs_clarification' || operational === 'needs_clarification') {
-    return { label: 'Needs clarification', tone: 'pending' };
+    return { label: 'Needs clarification', tone: 'needs_clarification' };
   }
   if (verification !== 'verified' || operational === 'pending') {
     return { label: 'Pending verification', tone: 'pending' };
   }
   return { label: lifecycle.label, tone: lifecycle.status };
+}
+
+function getFulfillmentAttribution(request, lifecycle) {
+  if (lifecycle?.status !== 'fulfilled') return null;
+
+  const fulfilledByRequester = Boolean(request?.recipient_received_at);
+  return fulfilledByRequester
+    ? {
+        source: 'requester',
+        label: 'Marked fulfilled by requester',
+        icon: 'fa-user-check'
+      }
+    : {
+        source: 'admin',
+        label: 'Marked fulfilled by admin',
+        icon: 'fa-user-shield'
+      };
 }
 
 function renderRequestCard(r) {
@@ -2626,9 +2690,17 @@ function renderRequestCard(r) {
   const lifecycle = getCommunityLifecycle(r);
   const status = lifecycle.status;
   const headerStatus = getRequestHeaderStatus(r, lifecycle);
+  const fulfillmentAttribution = getFulfillmentAttribution(r, lifecycle);
   const arrangementLabel = isReplacement ? 'Blood Replacement' : (r.request_type === 'emergency_donor' ? 'Emergency Donor Assistance' : '');
+  const pledges = Array.isArray(r.pledges) ? r.pledges : [];
+  const activePledgedUnits = pledges
+    .filter((pledge) => ['pledged', 'request_fulfilled', 'recipient_confirmed'].includes(String(pledge.status).toLowerCase()))
+    .reduce((total, pledge) => total + Number(pledge.units_pledged || 1), 0);
 
   const campaign = r.replacement_campaign || {};
+  const replacementTarget = Number(campaign.target_units || units);
+  const replacementPledged = Number(campaign.pledged_units || 0);
+  const replacementConfirmed = Number(campaign.confirmed_units || 0);
   const progressText = isReplacement
     ? `${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)} donors pledged · ${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)} units confirmed`
     : '';
@@ -2644,7 +2716,8 @@ function renderRequestCard(r) {
     && (operationalStatus === 'approved' || verificationStatus === 'verified')
     && ['active', 'covered'].includes(status);
   const hasRequestMenu = canEdit || canDelete || canCancel;
-  const canComplete = !isReplacement && (status === 'active' || status === 'covered') && !r.recipient_received_at;
+  const hasActivePledge = pledges.some((pledge) => String(pledge.status).toLowerCase() === 'pledged');
+  const canComplete = hasActivePledge && (status === 'active' || status === 'covered') && !r.recipient_received_at;
   const completionAction = canComplete
     ? '<button type="button" class="btn-feed-received" onclick="markBloodReceived(' + Number(reqId) + ')"><i class="fa-solid fa-heart-circle-check"></i> Mark Blood Received</button>'
     : '';
@@ -2667,6 +2740,7 @@ function renderRequestCard(r) {
             </div>
             ${arrangementLabel ? `<span class="request-arrangement-text">${arrangementLabel}</span>` : ''}
             <span class="feed-post-time"><i class="fa-regular fa-clock"></i> Submitted ${postedTime}</span>
+            ${fulfillmentAttribution ? `<span class="request-fulfillment-attribution ${fulfillmentAttribution.source}"><i class="fa-solid ${fulfillmentAttribution.icon}" aria-hidden="true"></i> ${fulfillmentAttribution.label}</span>` : ''}
           </div>
         </div>
         ${hasRequestMenu ? `<div class="my-req-menu-wrap" style="position:relative;">
@@ -2712,8 +2786,10 @@ function renderRequestCard(r) {
           <span class="feed-desc-label">Reason for request</span>
           <p class="feed-desc-text">${description || 'No description provided.'}</p>
           ${isReplacement ? `<div class="request-progress-summary my-request-progress" aria-label="Replacement donation progress">
-            <span><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i><strong>${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)}</strong> donors pledged</span>
-            <span><i class="fa-solid fa-circle-check" aria-hidden="true"></i><strong>${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)}</strong> units confirmed</span>
+            <span class="${getRequestProgressTone(replacementPledged, replacementTarget)}"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i><strong>${replacementPledged}/${replacementTarget}</strong> donors pledged</span>
+            <span class="${getRequestProgressTone(replacementConfirmed, replacementTarget)}"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><strong>${replacementConfirmed}/${replacementTarget}</strong> units confirmed</span>
+          </div>` : r.request_type === 'emergency_donor' ? `<div class="request-progress-summary my-request-progress" aria-label="Emergency donor pledge progress">
+            <span class="${getRequestProgressTone(activePledgedUnits, units)}"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i><strong>${activePledgedUnits}/${units}</strong> donors pledged</span>
           </div>` : ''}
         </div>
       </div>
@@ -2734,10 +2810,8 @@ function markBloodReceived(reqId) {
   if (bloodReceiptSaving) return;
   const request = (allRequests || []).find(r => String(r.id) === String(reqId));
   if (!request) { showToast('Request not found. Refresh My Requests and try again.'); return; }
-  if (request.request_type === 'replacement') {
-    showToast('Replacement donations are confirmed by the coordinator using facility records.');
-    return;
-  }
+  const hasActivePledge = (request.pledges || []).some((pledge) => String(pledge.status).toLowerCase() === 'pledged');
+  if (!hasActivePledge) { showToast('A donor must pledge before blood receipt can be confirmed.', 'error'); return; }
   if (request.recipient_received_at || !['active', 'covered'].includes(getCommunityLifecycle(request).status)) {
     showToast('This request no longer accepts blood receipt confirmation.');
     return;
@@ -2770,7 +2844,7 @@ async function confirmBloodReceipt() {
   bloodReceiptSaving = true;
   confirm.disabled = true;
   cancel.disabled = true;
-  confirm.textContent = 'Savingâ€¦';
+  confirm.textContent = 'Saving…';
   message.textContent = '';
   let saved = false;
   try {
@@ -2780,7 +2854,7 @@ async function confirmBloodReceipt() {
     request.recipient_received_at = new Date().toISOString();
     showToast(request.request_type === 'replacement'
       ? 'Blood receipt recorded. Replacement coordination remains active.'
-      : 'Blood received â€” thank you! The community request is now closed.');
+      : 'Blood received — thank you! Pledged donors and coordinators have been notified.');
   } catch (error) {
     message.textContent = error?.message || 'Unable to confirm blood receipt. Please try again.';
   } finally {
@@ -2870,6 +2944,54 @@ function openRequestActionModal(reqId, action) {
   const modal = document.getElementById('deleteRequestModal');
   if (modal) modal.classList.add('active');
 }
+
+let pendingPledgeUnsuccessful = null;
+let pledgeUnsuccessfulSaving = false;
+
+function openPledgeUnsuccessfulModal(requestId, pledgeId) {
+  pendingPledgeUnsuccessful = { requestId, pledgeId };
+  const inline = document.getElementById('pledgeUnsuccessfulInline');
+  const message = document.getElementById('pledgeUnsuccessfulMessage');
+  if (message) message.textContent = '';
+  if (inline) inline.hidden = false;
+  document.getElementById('cancelPledgeUnsuccessful')?.focus();
+}
+
+function closePledgeUnsuccessfulModal() {
+  if (pledgeUnsuccessfulSaving) return;
+  const inline = document.getElementById('pledgeUnsuccessfulInline');
+  if (inline) inline.hidden = true;
+  pendingPledgeUnsuccessful = null;
+}
+
+document.getElementById('confirmPledgeUnsuccessful')?.addEventListener('click', async () => {
+  if (pledgeUnsuccessfulSaving || !pendingPledgeUnsuccessful) return;
+  const { requestId, pledgeId } = pendingPledgeUnsuccessful;
+  const submit = document.getElementById('confirmPledgeUnsuccessful');
+  const cancel = document.getElementById('cancelPledgeUnsuccessful');
+  const message = document.getElementById('pledgeUnsuccessfulMessage');
+  pledgeUnsuccessfulSaving = true;
+  submit.disabled = true;
+  cancel.disabled = true;
+  submit.textContent = 'Updating pledge...';
+  if (message) message.textContent = '';
+  try {
+    const { error } = await markMyRequestPledgeUnsuccessful(requestId, pledgeId);
+    if (error) throw error;
+    pledgeUnsuccessfulSaving = false;
+    closePledgeUnsuccessfulModal();
+    closeCommunityRequestDetailModal();
+    showToast('The unsuccessful pledge was released. The request remains available.');
+    await loadRequests();
+  } catch (error) {
+    if (message) message.textContent = error?.message || 'Unable to update this pledge. Please try again.';
+  } finally {
+    pledgeUnsuccessfulSaving = false;
+    submit.disabled = false;
+    cancel.disabled = false;
+    submit.textContent = 'Mark unsuccessful';
+  }
+});
 
 function closeDeleteRequestModal() {
   pendingRequestAction = null;
@@ -2994,6 +3116,8 @@ window.toggleMyReqMenu = toggleMyReqMenu;
 window.openEditRequestModal = openEditRequestModal;
 window.closeEditRequestModal = closeEditRequestModal;
 window.openRequestActionModal = openRequestActionModal;
+window.openPledgeUnsuccessfulModal = openPledgeUnsuccessfulModal;
+window.closePledgeUnsuccessfulModal = closePledgeUnsuccessfulModal;
 window.closeDeleteRequestModal = closeDeleteRequestModal;
 
 function applyRequestFilter() {

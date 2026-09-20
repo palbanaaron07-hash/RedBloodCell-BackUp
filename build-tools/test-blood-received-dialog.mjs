@@ -8,7 +8,7 @@ const nodes = Object.fromEntries(['bloodReceivedDialog', 'bloodReceivedRequestLa
 nodes.bloodReceivedDialog.showModal = () => { nodes.bloodReceivedDialog.open = true; };
 nodes.bloodReceivedDialog.close = () => { nodes.bloodReceivedDialog.open = false; };
 let calls = 0, resolve;
-const request = { id: 9, request_type: 'replacement', status: 'active' };
+const request = { id: 9, request_type: 'replacement', status: 'active', pledges: [] };
 const context = vm.createContext({
   allRequests: [request], document: { getElementById: id => nodes[id], activeElement: null },
   getCommunityLifecycle: r => ({ status: r.status }), showToast() {}, loadRequests: async () => {},
@@ -17,6 +17,12 @@ const context = vm.createContext({
 vm.runInContext(code, context);
 context.markBloodReceived(9);
 assert.equal(nodes.bloodReceivedDialog.open, undefined);
+assert.equal(calls, 0);
+request.pledges = [{ pledge_id: 21, status: 'pledged' }];
+context.markBloodReceived(9);
+assert.equal(nodes.bloodReceivedDialog.open, true);
+assert.match(nodes.bloodReceivedGuidance.textContent, /remain open until the coordinator confirms/);
+context.closeBloodReceivedDialog();
 assert.equal(calls, 0);
 request.request_type = 'emergency_donor';
 context.markBloodReceived(9);

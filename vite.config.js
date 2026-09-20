@@ -8,7 +8,6 @@ const rootDirectory = dirname(fileURLToPath(import.meta.url));
 
 const rootHtmlPages = [
   'index.html',
-  'homie.html',
   'learn_more.html',
   'login.html',
   'register.html',

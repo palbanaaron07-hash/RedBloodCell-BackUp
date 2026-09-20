@@ -4687,7 +4687,7 @@ html[data-initial-section="help"] #section-help {
 }
 
 .donor-dashboard-grid {
-  align-items: start;
+  align-items: stretch;
 }
 
 .donor-profile-body {
@@ -4766,51 +4766,6 @@ html[data-initial-section="help"] #section-help {
 .availability-toggle:disabled {
   cursor: not-allowed;
   opacity: .58;
-}
-
-.donor-activity-list {
-  display: grid;
-  gap: 9px;
-}
-
-.donor-activity-item {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--slate-100);
-  border-radius: var(--radius-sm);
-  background: var(--slate-50);
-}
-
-.donor-activity-item>i {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.donor-activity-item strong {
-  display: block;
-  color: var(--slate-800);
-  font-size: .8rem;
-}
-
-.donor-activity-item span,
-.donor-activity-item time {
-  color: var(--slate-500);
-  font-size: .7rem;
-}
-
-.donor-empty-state {
-  padding: 24px 10px;
-  color: var(--slate-400);
-  font-size: .8rem;
-  text-align: center;
 }
 
 #donorLifecycleBadge.registered,
@@ -5009,6 +4964,23 @@ html[data-initial-section="help"] #section-help {
 /* ==========================================================================
    DONOR TRACKING & DONATION HISTORY STYLES
    ========================================================================== */
+
+.donor-profile-card,
+.donor-history-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.donor-history-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 18px 20px;
+  overflow: hidden;
+}
 
 /* Donor Activity History Item Cards */
 .donor-activity-item {
