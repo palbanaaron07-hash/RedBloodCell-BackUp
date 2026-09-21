@@ -58,13 +58,14 @@ jobs:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set +e
-          curl --silent --show-error --fail --connect-timeout 20 --max-time 30 --ftp-pasv --list-only --output /dev/null --user "$FTP_USERNAME:$FTP_PASSWORD" "$FTP_SERVER/"
+          curl --silent --show-error --fail --connect-timeout 30 --max-time 60 --retry 4 --retry-delay 10 --retry-connrefused --ftp-pasv --list-only --output /dev/null --user "$FTP_USERNAME:$FTP_PASSWORD" "$FTP_SERVER/public_html/"
           status=$?
           set -e
 
           case "$status" in
             0)
               echo "FTP connection and authentication succeeded."
+              echo "Remote directory /public_html/ is accessible."
               ;;
             6)
               echo "::error::FTP hostname could not be resolved. Check FTP_SERVER."
@@ -75,7 +76,11 @@ jobs:
               exit "$status"
               ;;
             28)
-              echo "::error::FTP connection timed out. The server may block GitHub-hosted runners."
+              echo "::error::FTP connection still timed out after retries. The server is unavailable or blocks this GitHub-hosted runner."
+              exit "$status"
+              ;;
+            9)
+              echo "::error::FTP login succeeded, but /public_html/ is not accessible from this account. Check the remote directory shown in FileZilla."
               exit "$status"
               ;;
             67)
@@ -88,18 +93,6 @@ jobs:
               ;;
           esac
 
-          set +e
-          curl --silent --show-error --fail --connect-timeout 20 --max-time 30 --ftp-pasv --list-only --output /dev/null --user "$FTP_USERNAME:$FTP_PASSWORD" "$FTP_SERVER/public_html/"
-          directory_status=$?
-          set -e
-
-          if [ "$directory_status" -ne 0 ]; then
-            echo "::error::FTP login succeeded, but /public_html/ is not accessible from this account (curl exit code $directory_status). Check the remote directory shown in FileZilla."
-            exit "$directory_status"
-          fi
-
-          echo "Remote directory /public_html/ is accessible."
-
       - name: Deploy to public_html
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -111,8 +104,8 @@ jobs:
           echo "=== Deploying to /public_html/ ==="
           lftp -c "
             set cmd:fail-exit yes;
-            set net:max-retries 2;
-            set net:timeout 20;
+            set net:max-retries 5;
+            set net:timeout 30;
             set ssl:check-hostname no;
             set ssl:verify-certificate no;
             set ftp:ssl-allow no;
