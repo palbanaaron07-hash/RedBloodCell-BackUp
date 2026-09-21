@@ -4,7 +4,6 @@
 
 /* My Requests: a distinct, scannable treatment without changing request controls. */
 .my-request-card { position: relative; border-color: #efdee1; background: linear-gradient(145deg, #fff 0%, #fffafa 100%); overflow: hidden; }
-.my-request-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: linear-gradient(180deg, #a30d20, #6f0010); }
 .my-request-card:hover { border-color: #e7c6cb; box-shadow: 0 8px 24px rgba(96, 0, 13, .09); }
 .my-request-card .my-request-avatar { background: #fff0f1; color: #991b1b; box-shadow: inset 0 0 0 1px rgba(128, 0, 0, .05); }
 .my-request-card .feed-requester-name { margin: 0; color: #1e293b; font-size: 1.02rem; font-weight: 800; }

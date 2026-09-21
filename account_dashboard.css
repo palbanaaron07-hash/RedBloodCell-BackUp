@@ -1885,14 +1885,6 @@ body.desktop-sidebar-open .main {
   overflow: hidden;
 }
 
-.donor-match-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: linear-gradient(180deg, #a30d20, #6f0010);
-}
-
 .donor-match-card:hover {
   border-color: #e5c6ca;
   box-shadow: 0 8px 22px rgba(96, 0, 13, .08);
@@ -5764,6 +5756,10 @@ html[data-initial-section="help"] #section-help {
   overflow: hidden;
 }
 
+/* ==========================================================================
+   DONOR TRACKING & DONATION HISTORY STYLES
+   ========================================================================== */
+
 /* Donor Activity History Item Cards */
 .donor-activity-item {
   display: flex;
@@ -5771,32 +5767,18 @@ html[data-initial-section="help"] #section-help {
   gap: 14px;
   padding: 14px 16px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: #ffffff;
+  border: 1px solid var(--slate-200, #e2e8f0);
   margin-bottom: 10px;
-  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .donor-activity-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: #ffffff;
+  border-color: var(--slate-300, #cbd5e1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   transform: translateY(-1px);
-}
-
-.donor-activity-item.status-completed {
-  border-left: 3px solid #10b981;
-}
-
-.donor-activity-item.status-pending {
-  border-left: 3px solid #f59e0b;
-}
-
-.donor-activity-item.status-failed {
-  border-left: 3px solid #ef4444;
-}
-
-.donor-activity-item.status-cancelled {
-  border-left: 3px solid #64748b;
 }
 
 .donor-activity-icon {
@@ -5808,26 +5790,28 @@ html[data-initial-section="help"] #section-help {
   justify-content: center;
   border-radius: 10px;
   font-size: 0.95rem;
+  background: #fff0f1;
+  color: #800000;
 }
 
 .donor-activity-icon.completed {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  background: #fff0f1;
+  color: #800000;
 }
 
 .donor-activity-icon.pending {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
+  background: #fffbeb;
+  color: #d97706;
 }
 
 .donor-activity-icon.failed {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
+  background: #fef2f2;
+  color: #dc2626;
 }
 
 .donor-activity-icon.cancelled {
-  background: rgba(148, 163, 184, 0.15);
-  color: #94a3b8;
+  background: #f1f5f9;
+  color: #64748b;
 }
 
 .donor-activity-main {
@@ -5846,8 +5830,8 @@ html[data-initial-section="help"] #section-help {
 
 .donor-activity-headline strong {
   font-size: 0.92rem;
-  color: #f8fafc;
-  font-weight: 600;
+  color: var(--slate-800, #0f172a);
+  font-weight: 700;
 }
 
 .donor-activity-sub {
@@ -5855,44 +5839,56 @@ html[data-initial-section="help"] #section-help {
   align-items: center;
   gap: 12px;
   font-size: 0.8rem;
-  color: var(--gray-400, #94a3b8);
+  color: var(--slate-500, #64748b);
+  font-weight: 500;
 }
 
 .donor-activity-sub time {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  color: inherit;
 }
 
 .donation-reason-note {
   margin-top: 8px;
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 0.78rem;
-  color: #cbd5e1;
+  background: var(--slate-50, #f8fafc);
+  border: 1px solid var(--slate-200, #e2e8f0);
+  font-size: 0.8rem;
+  color: var(--slate-700, #334155);
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  line-height: 1.4;
+  line-height: 1.45;
+  font-weight: 500;
 }
 
 .donation-reason-note i {
   margin-top: 2px;
   flex-shrink: 0;
+  color: var(--slate-400, #94a3b8);
 }
 
 .donation-reason-note.status-failed {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.donation-reason-note.status-failed i {
+  color: #dc2626;
 }
 
 .donation-reason-note.status-cancelled {
-  background: rgba(148, 163, 184, 0.08);
-  border-color: rgba(148, 163, 184, 0.2);
-  color: #cbd5e1;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.donation-reason-note.status-cancelled i {
+  color: #64748b;
 }
 
 /* Status Badges */
@@ -5909,27 +5905,27 @@ html[data-initial-section="help"] #section-help {
 }
 
 .badge-status-completed {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
 }
 
 .badge-status-pending {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
 }
 
 .badge-status-failed {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
 }
 
 .badge-status-cancelled {
-  background: rgba(148, 163, 184, 0.15);
-  color: #94a3b8;
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
 }
 
 /* Loading & Empty States */
@@ -5938,7 +5934,7 @@ html[data-initial-section="help"] #section-help {
 .donor-empty-state {
   text-align: center;
   padding: 32px 16px;
-  color: var(--gray-400, #94a3b8);
+  color: var(--slate-500, #64748b);
 }
 
 .donor-loading-state i,
@@ -5946,7 +5942,7 @@ html[data-initial-section="help"] #section-help {
 .donor-empty-state i {
   font-size: 2rem;
   margin-bottom: 12px;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 .donor-error-state i {
@@ -5961,14 +5957,14 @@ html[data-initial-section="help"] #section-help {
 .donor-error-state p {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #e2e8f0;
+  color: var(--slate-800, #1e293b);
   margin-bottom: 4px;
 }
 
 .donor-empty-state small,
 .donor-error-state small {
   font-size: 0.8rem;
-  color: var(--gray-500, #64748b);
+  color: var(--slate-500, #64748b);
   display: block;
   max-width: 420px;
   margin: 0 auto;
@@ -5983,7 +5979,7 @@ html[data-initial-section="help"] #section-help {
   font-size: 0.8rem;
   font-weight: 600;
   color: #fff;
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.85);
   border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: 8px;
   cursor: pointer;
@@ -5991,7 +5987,7 @@ html[data-initial-section="help"] #section-help {
 }
 
 .donor-error-retry-btn:hover {
-  background: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 1);
 }
 
 /* Delete Request Modal Button */
