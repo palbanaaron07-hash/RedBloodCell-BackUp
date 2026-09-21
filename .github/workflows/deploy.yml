@@ -51,6 +51,43 @@ jobs:
             fi
           done
 
+      - name: Test FTP connection and credentials
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set +e
+          curl --silent --show-error --fail --connect-timeout 20 --max-time 30 --ftp-pasv --list-only --output /dev/null --user "$FTP_USERNAME:$FTP_PASSWORD" "$FTP_SERVER/"
+          status=$?
+          set -e
+
+          case "$status" in
+            0)
+              echo "FTP connection and authentication succeeded."
+              ;;
+            6)
+              echo "::error::FTP hostname could not be resolved. Check FTP_SERVER."
+              exit "$status"
+              ;;
+            7)
+              echo "::error::FTP server refused the connection. Check the host, protocol, and port."
+              exit "$status"
+              ;;
+            28)
+              echo "::error::FTP connection timed out. The server may block GitHub-hosted runners."
+              exit "$status"
+              ;;
+            67)
+              echo "::error::FTP authentication failed. Check FTP_USERNAME and FTP_PASSWORD."
+              exit "$status"
+              ;;
+            *)
+              echo "::error::FTP connection test failed with curl exit code $status."
+              exit "$status"
+              ;;
+          esac
+
       - name: Deploy to public_html
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -64,8 +101,10 @@ jobs:
             set cmd:fail-exit yes;
             set net:max-retries 2;
             set net:timeout 20;
-            set ssl:verify-certificate false;
-            set ftp:ssl-allow yes;
+            set ssl:check-hostname no;
+            set ssl:verify-certificate no;
+            set ftp:ssl-allow no;
+            set ftp:passive-mode yes;
             mirror --reverse --delete --verbose ./dist/ /public_html/;
             bye
           " -u "$FTP_USERNAME,$FTP_PASSWORD" "$FTP_SERVER"
