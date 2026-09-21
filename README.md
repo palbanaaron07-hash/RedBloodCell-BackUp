@@ -26,7 +26,7 @@ The Vite configuration explicitly treats every root HTML page as an entry. The v
 - `public/` contains classic browser scripts, PWA files, and other files that must retain stable root URLs.
 - `public/scripts/pages/` contains behavior extracted unchanged from the corresponding HTML pages.
 - `supabase/` contains the primary PostgreSQL migrations and privileged Edge Functions.
-- `api/` is the legacy PHP/MySQL compatibility layer. It is not the primary domain backend.
+- `api/` is a retired PHP/MySQL compatibility layer retained for historical reference; it is not deployed.
 - Root `supabase-*.sql` files are manual compatibility/recovery patches retained at their documented paths. New schema evolution belongs in `supabase/migrations/`.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for responsibilities and refactoring rules.

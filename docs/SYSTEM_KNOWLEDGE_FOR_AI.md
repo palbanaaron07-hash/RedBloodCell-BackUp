@@ -34,7 +34,7 @@ The repository also retains an older inventory-oriented admin workflow. It must 
 
 ### Thesis-safe description
 
-VeinDrop is a web-based blood donation coordination and management prototype supporting authenticated recipient and donor accounts, multi-role profiles, coordinator verification, privacy-conscious donor discovery, compatibility-based appeals, pledges, donor support preferences, blood-drive scheduling/registration, replacement-donation confirmation, notifications, donor/request lifecycle tracking, and administrative monitoring. Supabase is the primary backend; PHP/MySQL remains for legacy compatibility. The system assists coordination and records management but does not replace clinical screening, laboratory compatibility testing, or licensed facility procedures.
+VeinDrop is a web-based blood donation coordination and management prototype supporting authenticated recipient and donor accounts, multi-role profiles, coordinator verification, privacy-conscious donor discovery, compatibility-based appeals, pledges, donor support preferences, blood-drive scheduling/registration, replacement-donation confirmation, notifications, donor/request lifecycle tracking, and administrative monitoring. Supabase is the sole active production backend; retired PHP/MySQL source remains only for historical reference. The system assists coordination and records management but does not replace clinical screening, laboratory compatibility testing, or licensed facility procedures.
 
 ## 2. Actors
 
@@ -87,8 +87,7 @@ Browser / installed PWA
   |      `-- public password-reset tables
   +--> Supabase Storage (private request evidence)
   +--> Supabase Realtime
-  +--> Supabase Deno/TypeScript Edge Functions
-  `--> legacy PHP/PDO/MySQL compatibility API
+  `--> Supabase Deno/TypeScript Edge Functions
 ```
 
 ### Technologies
@@ -99,7 +98,7 @@ Browser / installed PWA
 - Leaflet/OpenStreetMap for donor-area maps;
 - Chart.js for coordinator reports;
 - Service worker and web manifest for PWA behavior;
-- PHP/PDO/MySQL as a legacy fallback/synchronization layer.
+- Retired PHP/PDO/MySQL source retained outside the production build.
 
 **Important correction:** this is not currently a React application. `package.json` contains Vite only; operational pages are classic multi-page HTML/JavaScript.
 
@@ -140,13 +139,13 @@ Legacy aliases `patient_dashboard.html`, `patient_donor_map.html`, and `patient_
 1. User selects recipient or donor and provides identity/contact, DOB, gender, blood type, username, password, and optional medical note.
 2. Client checks email, valid date, donor age of at least 18, one of eight blood types, and strong password rules.
 3. Supabase Auth creates the identity; an RPC links the selected domain profile when a session is available.
-4. The browser tries a best-effort PHP/MySQL registration copy. Failure does not undo Supabase registration.
-5. Login tries Supabase first. A valid domain admin may be bootstrapped into Auth. Invalid Supabase credentials may fall back to PHP.
+4. Supabase is the only registration data store.
+5. Login uses Supabase Auth. A valid domain admin may be bootstrapped into Auth.
 6. Admins route to `admin_dashboard.html`; other roles route to `account_dashboard.html`.
 
 ### Password recovery
 
-The Edge Function requests/verifies a six-digit email OTP, enforces application-level request and five-attempt limits, stores hashed email/IP audit identifiers, permits a one-time policy-compliant reset, and revokes sessions. A matching legacy MySQL password is synchronized. Production needs configured SMTP and secrets.
+The Edge Function requests/verifies a six-digit email OTP, enforces application-level request and five-attempt limits, stores hashed email/IP audit identifiers, permits a one-time policy-compliant reset, synchronizes the Supabase admin hash when applicable, and revokes sessions. Production needs configured SMTP and secrets.
 
 ### Donor lifecycle
 
@@ -360,7 +359,7 @@ Authentication; multi-role profiles; profile editing; donor lifecycle/waiting ru
 
 ### Partial or deployment-dependent
 
-Applied schema state; Supabase/MySQL synchronization; best-effort audit writes; multi-write donor/inventory workflows; scheduled expiration; blood-drive attendance tracking; offline live data; approximate map distance; fallback admin emails; local profile images/UI preferences.
+Applied schema state; best-effort audit writes; multi-write donor/inventory workflows; scheduled expiration; blood-drive attendance tracking; offline live data; approximate map distance; fallback admin emails; local profile images/UI preferences.
 
 ### Demo-only or not end-to-end
 
@@ -370,7 +369,7 @@ SMS/email delivery; direct recipient-donor chat/contact consent; laboratory/hosp
 
 Implemented safeguards include Auth sessions, password hashing, RLS on newer sensitive tables, coordinator checks, private Storage/signed URLs, hashed reset audit identifiers, throttles, ownership checks, self-pledge prevention, constraints, and reduced map detail.
 
-Risks include broad legacy policies, disabled inventory RLS in a manual patch, fallback admin email logic, browser-orchestrated privileged workflows, development CORS/MySQL defaults, possible dual-database drift, and no complete retention/consent/breach-response program.
+Risks include broad legacy policies, disabled inventory RLS in a manual patch, fallback admin email logic, browser-orchestrated privileged workflows, and no complete retention/consent/breach-response program.
 
 Do not claim Philippine Data Privacy Act, HIPAA, ISO 27001, or other compliance based on code alone.
 
@@ -413,7 +412,7 @@ npm run verify:architecture
 - `supabase/functions/*/index.ts`: privileged functions.
 - Root `supabase-*.sql`: manual setup/repair patches; do not apply blindly.
 - `public/sw.js`, `public/manifest.webmanifest`: PWA.
-- `api/*.php`, `data.sql`: legacy PHP/MySQL.
+- `api/*.php`, `data.sql`: retired PHP/MySQL source retained for historical reference.
 - `build-tools/*.mjs`: verification/regression checks.
 - `System_Proposal.txt`: older proposal; current code and this file supersede stale details.
 

@@ -80,7 +80,7 @@ In Supabase Dashboard, configure Authentication before using the reset flow:
 3. Configure a custom SMTP provider for production delivery. The built-in provider is intended only for testing and has a very low email limit.
 4. Keep the per-address resend interval at `60` seconds or longer and configure Auth rate limits for the expected production traffic.
 
-The `password-reset` Edge Function adds an application-level five-attempt verification limit, per-email and per-IP request throttles, hashed audit identifiers, one-time challenge consumption, password policy enforcement, and global refresh-token revocation. Deploy `api/sync-reset-password.php` with the rest of the PHP API so legacy MySQL credentials remain synchronized.
+The `password-reset` Edge Function adds an application-level five-attempt verification limit, per-email and per-IP request throttles, hashed audit identifiers, one-time challenge consumption, password policy enforcement, and global refresh-token revocation. It is the sole production password-reset backend; the retired PHP/MySQL API is not deployed.
 
 ## 4) Update frontend configuration
 

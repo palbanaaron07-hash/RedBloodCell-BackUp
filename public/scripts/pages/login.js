@@ -92,27 +92,6 @@
       }, 5000);
     }
 
-    // Try server-side PHP login as a fallback for accounts created via the PHP API
-    async function attemptPhpLogin(loginIdentifier, password) {
-      try {
-        const res = await fetch('/api/login.php', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ login: loginIdentifier, email: loginIdentifier, password })
-        });
-
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          return { data: null, error: { message: json.error || json.message || `PHP login failed (HTTP ${res.status})` } };
-        }
-
-        return { data: json.data || null, error: null };
-      } catch (err) {
-        return { data: null, error: { message: 'Network error while contacting server.' } };
-      }
-    }
-
     document.querySelector('.login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const loginIdentifier = document.getElementById('email').value.trim();
@@ -136,35 +115,7 @@
       try {
           const { data, error } = await signIn(loginIdentifier, password);
 
-          // If Supabase says invalid credentials, try the PHP login API as a fallback
           if (error) {
-            const msg = String(error.message || '').toLowerCase();
-            const isInvalid = msg.includes('invalid') || msg.includes('credentials') || msg.includes('password');
-            if (isInvalid) {
-              try {
-                const php = await attemptPhpLogin(loginIdentifier, password);
-                if (php && php.data) {
-                  // PHP session set via cookie; perform same redirect logic
-                  showAlert('Login successful! Redirecting...', 'success');
-                  setTimeout(() => {
-                    if (nextDestination) {
-                      window.location.href = nextDestination;
-                      return;
-                    }
-                    const role = php.data.profile?.role || php.data.user?.role || 'patient';
-                    if (role === 'admin') {
-                      window.location.href = 'admin_dashboard.html';
-                    } else {
-                      window.location.href = 'account_dashboard.html';
-                    }
-                  }, 600);
-                  return;
-                }
-              } catch (phpErr) {
-                console.warn('PHP login fallback failed', phpErr);
-              }
-            }
-
             showAlert(error.message || 'An unknown error occurred.', 'error');
             btn.disabled = false;
             btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In';

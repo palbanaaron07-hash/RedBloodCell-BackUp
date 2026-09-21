@@ -26,7 +26,7 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      - name: Copy Server Config and PHP API
+      - name: Copy Server Config and Entry Points
         run: |
           if [ -f ".htaccess" ]; then
             cp .htaccess dist/
@@ -37,30 +37,37 @@ jobs:
           if [ -f "index.php" ]; then
             cp index.php dist/
           fi
-          if [ -d "api" ]; then
-            cp -r api dist/
-          fi
 
-      - name: Deploy to FTP Server (both paths)
+      - name: Validate FTP configuration
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          for name in FTP_SERVER FTP_USERNAME FTP_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not configured as a GitHub Actions secret"
+              exit 1
+            fi
+          done
+
+      - name: Deploy to public_html
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           sudo apt-get install -y lftp > /dev/null 2>&1
 
-          # Upload to public_html/bloodconnect/
-          echo "=== Deploying to public_html/bloodconnect/ ==="
+          echo "=== Deploying to /public_html/ ==="
           lftp -e "
+            set cmd:fail-exit yes;
+            set net:max-retries 2;
+            set net:timeout 20;
             set ssl:verify-certificate false;
             set ftp:ssl-allow yes;
-            mirror --reverse --delete --verbose ./dist/ /public_html/bloodconnect/;
+            mirror --reverse --delete --verbose ./dist/ /public_html/;
             bye
-          " -u "${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_SERVER }}"
-
-          # Also upload to FTP root
-          echo "=== Deploying to FTP root ==="
-          lftp -e "
-            set ssl:verify-certificate false;
-            set ftp:ssl-allow yes;
-            mirror --reverse --delete --verbose ./dist/ /;
-            bye
-          " -u "${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_SERVER }}"
+          " -u "$FTP_USERNAME,$FTP_PASSWORD" "$FTP_SERVER"
 
           echo "=== Done ==="

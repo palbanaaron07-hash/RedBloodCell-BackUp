@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +25,12 @@ const allowedInlineScripts = new Map([
   // This tiny head script applies the saved theme before first paint.
   ['account_dashboard.html', 1]
 ]);
+const browserRuntimeFiles = readdirSync(resolve(root, 'public'), {
+  recursive: true,
+  withFileTypes: true
+})
+  .filter((entry) => entry.isFile() && entry.name.endsWith('.js'))
+  .map((entry) => resolve(entry.parentPath, entry.name));
 
 function localReferenceTarget(reference, baseDirectory) {
   if (/^(?:[a-z]+:|\/\/|#)/i.test(reference) || reference === '/') return null;
@@ -40,6 +46,13 @@ for (const page of pages) {
 
   if (!existsSync(sourcePath)) errors.push(`Missing source page: ${page}`);
   if (!existsSync(builtPath)) errors.push(`Missing built page: dist/${page}`);
+}
+
+for (const runtimeFile of browserRuntimeFiles) {
+  const source = readFileSync(runtimeFile, 'utf8');
+  if (/\/api\/[a-z0-9_-]+\.php\b/i.test(source)) {
+    errors.push(`${runtimeFile} contains a retired PHP API dependency`);
+  }
 }
 
 for (const page of pages) {

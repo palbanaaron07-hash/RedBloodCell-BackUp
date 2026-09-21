@@ -181,50 +181,6 @@ function configError() {
   };
 }
 
-async function syncPhpRegistration({ email, password, firstName, middleName, lastName, phone, dob, address, gender, bloodType, username, medicalNotes = "", role }) {
-  try {
-    const response = await fetch('/api/register.php', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        password,
-        firstName,
-        middleName,
-        lastName,
-        phone,
-        dob,
-        address,
-        gender,
-        bloodType,
-        username,
-        medicalNotes,
-        role
-      })
-    });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return {
-        data: null,
-        error: {
-          message: payload?.error || payload?.message || `PHP registration failed (HTTP ${response.status})`
-        }
-      };
-    }
-
-    return { data: payload?.data || null, error: null };
-  } catch (_) {
-    return {
-      data: null,
-      error: {
-        message: 'Network error while contacting server.'
-      }
-    };
-  }
-}
-
 function bloodBank() {
   return supabaseClient.schema('blood_bank');
 }
@@ -1148,26 +1104,6 @@ async function signUp({ email, password, firstName, middleName, lastName, phone,
       }
     }
 
-    const phpSync = await syncPhpRegistration({
-      email,
-      password,
-      firstName,
-      middleName,
-      lastName,
-      phone,
-      dob,
-      address,
-      gender,
-      bloodType,
-      username,
-      medicalNotes,
-      role: startingRole
-    });
-
-    if (phpSync.error) {
-      console.warn('PHP registration sync failed', phpSync.error.message);
-    }
-
     return { data, error: null };
   } catch (err) {
     return { data: null, error: { message: 'Network error while connecting to Supabase' } };
@@ -1286,26 +1222,6 @@ async function verifyPasswordResetOtp(email, token) {
   return { data: { verified: true }, error: null };
 }
 
-async function syncPhpResetPassword(password, action, accessToken) {
-  try {
-    const response = await fetch('/api/sync-reset-password.php', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({ action, password })
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) return { error: { message: payload.error || 'Legacy account sync failed.' } };
-    return { data: payload, error: null };
-  } catch (_) {
-    // The PHP compatibility API is optional in Supabase-only deployments.
-    return { data: { skipped: true }, error: null };
-  }
-}
-
 async function completePasswordReset(password, email = '') {
   const passwordCheck = validatePasswordPolicy(password, { email });
   if (!passwordCheck.ok) return { data: null, error: { message: passwordCheck.message } };
@@ -1316,14 +1232,8 @@ async function completePasswordReset(password, email = '') {
     return { data: null, error: { message: 'Verification has expired. Request a new code.' } };
   }
 
-  const legacyCheck = await syncPhpResetPassword(password, 'validate', session.access_token);
-  if (legacyCheck.error) return { data: null, error: legacyCheck.error };
-
   const result = await callPasswordResetService({ action: 'reset', password }, session.access_token);
   if (result.error) return result;
-
-  const legacySync = await syncPhpResetPassword(password, 'commit', session.access_token);
-  if (legacySync.error) return { data: null, error: legacySync.error };
 
   const revokeResult = await callPasswordResetService({ action: 'revoke' }, session.access_token);
   await clearAuthSession();

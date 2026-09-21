@@ -1,7 +1,9 @@
-# PHP/MySQL compatibility API
+# Retired PHP/MySQL compatibility API
 
-This directory preserves the existing `/api/*.php` endpoints and PHP session behavior. Supabase is the primary backend; these endpoints support legacy login, registration synchronization, password synchronization, and older MySQL workflows.
+This directory preserves the old `/api/*.php` endpoints for historical reference.
+The production browser no longer calls these endpoints, and the GitHub deployment
+workflow does not copy this directory into `dist`.
 
-Do not move endpoint files into a nested directory without routing aliases because their paths are public compatibility interfaces. New operational features should use Supabase migrations, Row Level Security, RPCs, or Edge Functions unless MySQL compatibility is an explicit requirement.
-
-`config.php` contains local XAMPP defaults and permissive development CORS. Production deployment requires environment-provided credentials, restricted origins, hardened session cookies, and non-debug database error responses.
+Supabase Auth, the `blood_bank` PostgreSQL schema, RPCs, Realtime, Storage, and
+Edge Functions are the only active production backend. Do not add new calls to
+these PHP endpoints.

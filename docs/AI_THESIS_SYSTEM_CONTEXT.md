@@ -129,8 +129,7 @@ User browser
   |      |-- blood_bank schema: operational data
   |      |-- public schema: password-reset security/audit data
   |      +-- Row Level Security, triggers, RPC functions, Realtime
-  +--> Supabase Edge Functions (privileged/admin and password-reset work)
-  +--> PHP API + MySQL compatibility layer (legacy/synchronization path)
+  `--> Supabase Edge Functions (privileged/admin and password-reset work)
 ```
 
 ### 3.2 Front-end technologies
@@ -155,7 +154,7 @@ The system uses a unified landing implementation:
 - PostgREST queries and PostgreSQL RPC functions through the Supabase SDK;
 - Supabase Realtime subscriptions for blood-request and inventory change events;
 - Deno/TypeScript Supabase Edge Functions for privileged tasks;
-- PHP 8-style JSON endpoints using PDO and a MySQL database named `bloodconnect` as a compatibility layer.
+- Retired PHP/PDO/MySQL compatibility source retained outside the production build.
 
 ### 3.4 Main application pages
 
@@ -163,9 +162,9 @@ The system uses a unified landing implementation:
 |---|---|---|
 | `index.html` | Public marketing home page | Static presentation/navigation |
 | `learn_more.html` | System feature explanation | Static content |
-| `register.html` | Four-step account registration | Supabase-backed with best-effort PHP/MySQL sync |
-| `login.html` | Login and role-based routing | Supabase primary; PHP fallback |
-| `forgot-password.html` | Email OTP password-reset flow | Supabase Edge Function; PHP credential sync if applicable |
+| `register.html` | Four-step account registration | Supabase-backed |
+| `login.html` | Login and role-based routing | Supabase Auth |
+| `forgot-password.html` | Email OTP password-reset flow | Supabase Edge Function |
 | `account_dashboard.html` | Patient and donor self-service portal | Mostly Supabase-backed; some fixed/local features |
 | `donor_registration.html` | Adds donor capability/profile to signed-in account | Supabase RPC-backed |
 | `recipient_donor_map.html` | Privacy-safe Bohol donor-zone map | Supabase RPC with fixed sample fallback |
@@ -191,16 +190,14 @@ The system uses a unified landing implementation:
 5. If a session is immediately available, the system activates the chosen domain profile:
    - Patient registration creates or links `blood_bank.patient`;
    - Donor registration creates or links `blood_bank.donor`.
-6. The code also attempts to copy the registration to the PHP/MySQL `profiles` table. Failure of this compatibility sync is logged in the browser but does not cancel successful Supabase registration.
-7. The user is sent to login. If email confirmation is enabled in Supabase, final domain-profile activation can occur after the confirmed user signs in.
+6. The user is sent to login. If email confirmation is enabled in Supabase, final domain-profile activation can occur after the confirmed user signs in.
 
 ### 4.2 Login and routing process
 
 1. The user submits email and password.
 2. Supabase Auth is tried first.
 3. If a known administrator has valid credentials only in the domain `admin` table, the `bootstrap-admin-auth` Edge Function can create or update the corresponding Supabase Auth identity, after which login is retried.
-4. If Supabase reports invalid credentials, the page may try the legacy PHP login endpoint.
-5. After Supabase login, the system resolves the profile:
+4. After Supabase login, the system resolves the profile:
    - Known/database-backed admin -> admin profile;
    - Otherwise -> linked patient/donor profiles and combined roles.
 6. Admins are routed to `admin_dashboard.html`; other authenticated roles are routed to `account_dashboard.html`.
@@ -382,9 +379,8 @@ Therefore, notifications should be described as a combination of real-time dashb
 4. Supabase sends and verifies the six-digit recovery OTP.
 5. After verification, the user selects a password meeting the strong-password rules.
 6. Supabase Auth is updated. If the email belongs to a database admin, the admin password hash is also synchronized.
-7. The PHP compatibility endpoint can validate and update the corresponding MySQL password.
-8. The Edge Function invalidates active Supabase sessions globally and consumes the reset challenge.
-9. Reset events are written to a private audit table.
+7. The Edge Function invalidates active Supabase sessions globally and consumes the reset challenge.
+8. Reset events are written to a private audit table.
 
 The service returns a generic response for password-reset requests to reduce account enumeration.
 
@@ -648,9 +644,11 @@ The `overview-stats` function currently uses a service-role client without check
 
 ---
 
-## 7. PHP/MySQL compatibility layer
+## 7. Retired PHP/MySQL compatibility source
 
-The `api` directory provides session-based JSON endpoints against a local XAMPP-style MySQL database named `bloodconnect`:
+The `api` directory preserves historical session-based JSON endpoints against a
+local XAMPP-style MySQL database named `bloodconnect`. The production browser does
+not call them and the deployment workflow does not publish them:
 
 - `register.php`: inserts a patient/donor account into `profiles` with `password_hash()`;
 - `login.php`: verifies password and stores `user_id` and `role` in a PHP session;
@@ -666,7 +664,10 @@ The repository does not contain a complete MySQL `CREATE TABLE` schema. Columns 
 - `profiles`: `id`, email, password hash, name fields, phone, birth date, address, gender, blood type, role, username, medical notes, eligibility, and timestamps;
 - `blood_requests`: requester ID/name, blood type, units, hospital, urgency, notes, status, and timestamps.
 
-The current browser code treats Supabase as primary and MySQL as compatibility/fallback. A thesis database diagram should therefore use the verified Supabase/PostgreSQL schema as the primary data model and describe MySQL separately as a legacy synchronization layer. It should not merge similarly named MySQL and PostgreSQL tables into one logical schema.
+The current browser uses only Supabase. A thesis database diagram should use the
+verified Supabase/PostgreSQL schema as the production data model and may describe
+MySQL only as a retired historical implementation. It should not merge similarly
+named MySQL and PostgreSQL tables into one logical schema.
 
 ---
 
@@ -676,7 +677,7 @@ Implemented controls include:
 
 - Supabase Auth sessions with persistence, refresh, and URL recovery detection;
 - Strong client-side and reset-service password rules;
-- Password hashing by Supabase, bcrypt, or PHP `password_hash` depending on the store;
+- Password hashing by Supabase Auth and bcrypt for the domain admin compatibility hash;
 - Protected page guards;
 - Admin verification inside privileged donor Edge Functions;
 - Database RLS and grants;
@@ -693,8 +694,7 @@ Security limitations to acknowledge:
 - Several RLS repair policies grant broad access to all authenticated users.
 - Some admin identification uses hard-coded/fallback email matching.
 - Some important workflows are executed directly in browser JavaScript.
-- The PHP development configuration allows any CORS origin and assumes default local MySQL credentials.
-- PHP sessions do not visibly set all modern cookie hardening options in the repository.
+- Retired PHP source still contains development-only CORS and MySQL defaults and must remain undeployed.
 - The service worker uses cache-first behavior for many GET resources, which can serve stale interfaces unless cache versioning is updated.
 - Personally identifiable and health-related information requires a formal retention, consent, breach-response, and access-control policy outside this codebase.
 
@@ -723,7 +723,7 @@ Do not claim compliance with the Philippine Data Privacy Act, HIPAA, ISO 27001, 
 - Notifications: real-time/polling plus browser-local UI state and unsent queue entries;
 - Inventory expiration: schema/function exists, but no scheduler is shown;
 - Audit logging: several audit writes are best effort;
-- Dual database operation: Supabase is primary, MySQL is a fallback/sync path and can diverge;
+- Retired MySQL records are not synchronized with production Supabase data;
 - PWA offline mode: only a limited app shell is cached; protected live data requires connectivity;
 - Donor location: map uses approximate named areas and deterministic grouping, not verified live GPS distance.
 
@@ -754,7 +754,7 @@ These are appropriate for thesis “limitations” or “recommendations,” not
 10. Add database-backed blood drives, registrations, capacity, attendance, and outcomes.
 11. Implement persistent object storage for profile photos if required, with access and retention rules.
 12. Replace synthetic map distances with an explicitly designed privacy-preserving proximity method if real distance is required.
-13. Consolidate or retire the PHP/MySQL compatibility database to prevent credential and operational-data drift.
+13. Keep the retired PHP/MySQL compatibility source out of production deployments.
 14. Add automated unit, integration, security, concurrency, and usability tests; no test suite is configured in `package.json`.
 15. Add deployment documentation, environment separation, secret rotation, backups, monitoring, and disaster recovery.
 16. Review clinical terminology and workflow with qualified blood-bank personnel before real-world use.
@@ -797,7 +797,7 @@ Use these repository files to verify or update this context:
 - `supabase-auth-link-and-cascade.sql` — Auth foreign keys and cascade behavior;
 - `supabase-donor-map-visibility.sql` — map consent/verification fields;
 - `supabase/functions/*/index.ts` — privileged Edge Functions;
-- `api/*.php` — legacy MySQL compatibility endpoints;
+- `api/*.php` — retired MySQL compatibility source, not deployed;
 - `public/manifest.webmanifest`, `public/sw.js` — PWA manifest and offline shell;
 - `System_Proposal.txt` — earlier high-level system proposal.
 
