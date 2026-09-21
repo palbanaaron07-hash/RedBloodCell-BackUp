@@ -88,6 +88,18 @@ jobs:
               ;;
           esac
 
+          set +e
+          curl --silent --show-error --fail --connect-timeout 20 --max-time 30 --ftp-pasv --list-only --output /dev/null --user "$FTP_USERNAME:$FTP_PASSWORD" "$FTP_SERVER/public_html/"
+          directory_status=$?
+          set -e
+
+          if [ "$directory_status" -ne 0 ]; then
+            echo "::error::FTP login succeeded, but /public_html/ is not accessible from this account (curl exit code $directory_status). Check the remote directory shown in FileZilla."
+            exit "$directory_status"
+          fi
+
+          echo "Remote directory /public_html/ is accessible."
+
       - name: Deploy to public_html
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -97,7 +109,7 @@ jobs:
           sudo apt-get install -y lftp > /dev/null 2>&1
 
           echo "=== Deploying to /public_html/ ==="
-          lftp -e "
+          lftp -c "
             set cmd:fail-exit yes;
             set net:max-retries 2;
             set net:timeout 20;
@@ -105,8 +117,10 @@ jobs:
             set ssl:verify-certificate no;
             set ftp:ssl-allow no;
             set ftp:passive-mode yes;
+            open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_SERVER\";
+            pwd;
             mirror --reverse --delete --verbose ./dist/ /public_html/;
             bye
-          " -u "$FTP_USERNAME,$FTP_PASSWORD" "$FTP_SERVER"
+          "
 
           echo "=== Done ==="
