@@ -2232,7 +2232,7 @@ body.desktop-sidebar-open .main {
 /* Feed Request Card (Exact design from the screenshot) */
 .feed-request-card {
   background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 2px solid #d49ba3;
   border-radius: 20px;
   padding: 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
@@ -2329,7 +2329,7 @@ body.desktop-sidebar-open .main {
 /* Inner Highlight Box */
 .feed-inner-box {
   background: #fdfbfb;
-  border: 1px solid #f2e6e7;
+  border: 2px solid #dfbcc2;
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 16px;
@@ -3806,11 +3806,7 @@ html[data-initial-section="help"] #section-help {
 }
 
 .drive-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 5px;
-  background: var(--accent);
+  display: none !important;
 }
 
 .drive-card:hover {
@@ -3826,24 +3822,8 @@ html[data-initial-section="help"] #section-help {
   box-shadow: var(--shadow-md);
 }
 
-.drive-card.completed::before {
-  background: var(--emerald);
-}
-
-.drive-card.full::before {
-  background: var(--amber);
-}
-
-.drive-card.recruiting::before {
-  background: var(--sky);
-}
-
 .drive-card.missed {
   background: linear-gradient(160deg, var(--white) 0%, var(--slate-50) 100%);
-}
-
-.drive-card.missed::before {
-  background: var(--slate-300);
 }
 
 .drive-card-top,

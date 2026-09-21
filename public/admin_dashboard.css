@@ -400,7 +400,7 @@ img {
   color: var(--white);
 }
 
-/* ── Header Profile (Static) ── */
+/* ── Header dropdown ── */
 .header-profile-wrap {
   position: relative;
 }
@@ -409,14 +409,17 @@ img {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 8px;
+  padding: 4px 10px 4px 4px;
   border-radius: 10px;
-  cursor: default;
+  transition: background var(--transition);
+  cursor: pointer;
   background: none;
   border: none;
   font: inherit;
-  user-select: none;
-  pointer-events: none;
+}
+
+.header-profile:hover {
+  background: var(--gray-100);
 }
 
 .header-dropdown {

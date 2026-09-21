@@ -1,17 +1,1 @@
-.recipient-overview[hidden] { display: none; }
-.recipient-overview { margin-bottom: 24px; }
-.recipient-overview > h2 { margin: 0 0 8px; font-size: 1.25rem; color: var(--slate-900); }
-.recipient-overview > p { margin: 0 0 18px; color: var(--slate-500); font-size: .87rem; line-height: 1.6; }
-.recipient-overview-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.recipient-overview-link { display: flex; align-items: center; gap: 14px; padding: 20px; text-decoration: none; color: #800000; margin: 0; }
-.recipient-overview-link > div { flex: 1; }
-.recipient-overview-link h3 { font-size: .94rem; margin: 0 0 6px; color: var(--slate-900); }
-.recipient-overview-link p { font-size: .8rem; line-height: 1.5; color: var(--slate-500); margin: 0; }
-.recipient-overview-link:hover { border-color: #d8a9b0; background: #fffafb; }
-.recipient-overview-link:focus-visible { outline: 2px solid #800000; outline-offset: 3px; }
-#donorEnrollmentState { padding: 16px 18px; gap: 14px; background: #fffafb; }
-#donorEnrollmentState .donor-enrollment-icon { width: 42px; height: 42px; font-size: 1rem; }
-#donorEnrollmentState h3 { font-size: .95rem; }
-#donorEnrollmentState p:not(.form-msg) { font-size: .78rem; }
-#donorEnrollmentState .panel-kicker { font-size: .63rem; }
-@media (max-width: 700px) { .recipient-overview-actions { grid-template-columns: 1fr; } }
+@import url('/styles/components/recipient-overview.css');

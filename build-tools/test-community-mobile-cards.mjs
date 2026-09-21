@@ -8,6 +8,7 @@ const context = vm.createContext({
   escapeHtml: value => String(value).replaceAll('<', '&lt;'),
   formatTimeAgo: () => 'Today',
   getCommunityLifecycle: request => ({ status: request.status || 'active', label: request.status || 'Active' }),
+  getRequestProgressTone: () => 'tone-neutral',
   activeCommunityFilter: 'all'
 });
 vm.runInContext(code, context);
@@ -29,7 +30,10 @@ for (const request_type of ['replacement', 'emergency_donor']) {
 }
 context.activeCommunityFilter = 'hidden';
 assert.match(context.renderCommunityCard({ id: 9 }), /unhideFeedCard\('9'\)/);
-const css = fs.readFileSync(new URL('../mobile-request-cards.css', import.meta.url), 'utf8');
+const cssPath = fs.existsSync(new URL('../styles/components/mobile-request-cards.css', import.meta.url))
+  ? new URL('../styles/components/mobile-request-cards.css', import.meta.url)
+  : new URL('../mobile-request-cards.css', import.meta.url);
+const css = fs.readFileSync(cssPath, 'utf8');
 assert.match(css, /:is\(\[id\^="myReqCard-"\], \[id\^="feedCard-"\]\)/);
 assert.match(css, /min-height: 48px/);
 console.log('Community mobile card regression checks passed.');

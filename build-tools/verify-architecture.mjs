@@ -16,7 +16,8 @@ const pages = [
   'patient_dashboard.html',
   'patient_donor_map.html',
   'patient_notifications.html',
-  'admin_dashboard.html'
+  'admin_dashboard.html',
+  'donor_pledge_details.html'
 ];
 
 const errors = [];
