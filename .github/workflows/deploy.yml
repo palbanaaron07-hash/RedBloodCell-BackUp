@@ -61,8 +61,23 @@ jobs:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '.' }}
         run: |
+          case "$FTP_SERVER" in
+            ftp://*|ftps://*)
+              FTP_URL="$FTP_SERVER"
+              ;;
+            http://*)
+              FTP_URL="ftp://${FTP_SERVER#http://}"
+              ;;
+            https://*)
+              FTP_URL="ftp://${FTP_SERVER#https://}"
+              ;;
+            *)
+              FTP_URL="ftp://$FTP_SERVER"
+              ;;
+          esac
+
           set +e
-          curl --silent --show-error --fail --connect-timeout 30 --max-time 60 --retry 4 --retry-delay 10 --retry-connrefused --ftp-pasv --list-only --output /dev/null --user "$FTP_USERNAME:$FTP_PASSWORD" "$FTP_SERVER/$FTP_SERVER_DIR/"
+          curl --silent --show-error --fail --connect-timeout 30 --max-time 60 --retry 4 --retry-delay 10 --retry-connrefused --ftp-pasv --list-only --output /dev/null --user "$FTP_USERNAME:$FTP_PASSWORD" "$FTP_URL/$FTP_SERVER_DIR/"
           status=$?
           set -e
 
@@ -104,6 +119,21 @@ jobs:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '.' }}
         run: |
+          case "$FTP_SERVER" in
+            ftp://*|ftps://*)
+              FTP_URL="$FTP_SERVER"
+              ;;
+            http://*)
+              FTP_URL="ftp://${FTP_SERVER#http://}"
+              ;;
+            https://*)
+              FTP_URL="ftp://${FTP_SERVER#https://}"
+              ;;
+            *)
+              FTP_URL="ftp://$FTP_SERVER"
+              ;;
+          esac
+
           sudo apt-get install -y lftp > /dev/null 2>&1
 
           echo "=== Deploying to $FTP_SERVER_DIR ==="
@@ -115,7 +145,7 @@ jobs:
             set ssl:verify-certificate no;
             set ftp:ssl-allow no;
             set ftp:passive-mode yes;
-            open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_SERVER\";
+            open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_URL\";
             pwd;
             mirror --reverse --delete --verbose ./dist/ \"$FTP_SERVER_DIR/\";
             bye
