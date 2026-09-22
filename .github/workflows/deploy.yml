@@ -45,7 +45,7 @@ jobs:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '.' }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '/' }}
         run: |
           for name in FTP_SERVER FTP_USERNAME FTP_PASSWORD; do
             if [ -z "${!name}" ]; then
@@ -61,7 +61,7 @@ jobs:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '.' }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '/' }}
         run: |
           case "$FTP_SERVER" in
             ftp://*|ftps://*)
@@ -119,7 +119,7 @@ jobs:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '.' }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '/' }}
         run: |
           case "$FTP_SERVER" in
             ftp://*|ftps://*)
