@@ -45,7 +45,7 @@ jobs:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '/' }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '/public_html' }}
         run: |
           for name in FTP_SERVER FTP_USERNAME FTP_PASSWORD; do
             if [ -z "${!name}" ]; then
@@ -61,7 +61,7 @@ jobs:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '/' }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '/public_html' }}
         run: |
           case "$FTP_SERVER" in
             ftp://*|ftps://*)
@@ -119,7 +119,7 @@ jobs:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '/' }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '/public_html' }}
         run: |
           case "$FTP_SERVER" in
             ftp://*|ftps://*)
@@ -136,6 +136,15 @@ jobs:
               ;;
           esac
 
+          # Never mirror with --delete into the FTP account root: it holds
+          # public_html and other hosting folders that are not part of dist/.
+          case "$FTP_SERVER_DIR" in
+            ""|"/"|"."|"./"|"~"|"~/")
+              echo "::error::Refusing to deploy with --delete into the FTP root ($FTP_SERVER_DIR). Set FTP_SERVER_DIR to the web root, e.g. /public_html."
+              exit 1
+              ;;
+          esac
+
           sudo apt-get install -y lftp > /dev/null 2>&1
 
           echo "=== Deploying to $FTP_SERVER_DIR ==="
@@ -149,7 +158,7 @@ jobs:
             set ftp:passive-mode yes;
             open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_URL\";
             pwd;
-            mirror --reverse --delete --verbose ./dist/ \"$FTP_SERVER_DIR/\";
+            mirror --reverse --delete --verbose --exclude-glob .well-known/ --exclude-glob cgi-bin/ --exclude-glob .user.ini ./dist/ \"$FTP_SERVER_DIR/\";
             bye
           "
 
