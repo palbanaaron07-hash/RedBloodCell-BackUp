@@ -43,6 +43,7 @@ jobs:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '.' }}
         run: |
           for name in FTP_SERVER FTP_USERNAME FTP_PASSWORD; do
             if [ -z "${!name}" ]; then
@@ -51,21 +52,24 @@ jobs:
             fi
           done
 
+          echo "Deploying to FTP directory: $FTP_SERVER_DIR"
+
       - name: Test FTP connection and credentials
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '.' }}
         run: |
           set +e
-          curl --silent --show-error --fail --connect-timeout 30 --max-time 60 --retry 4 --retry-delay 10 --retry-connrefused --ftp-pasv --list-only --output /dev/null --user "$FTP_USERNAME:$FTP_PASSWORD" "$FTP_SERVER/public_html/"
+          curl --silent --show-error --fail --connect-timeout 30 --max-time 60 --retry 4 --retry-delay 10 --retry-connrefused --ftp-pasv --list-only --output /dev/null --user "$FTP_USERNAME:$FTP_PASSWORD" "$FTP_SERVER/$FTP_SERVER_DIR/"
           status=$?
           set -e
 
           case "$status" in
             0)
               echo "FTP connection and authentication succeeded."
-              echo "Remote directory /public_html/ is accessible."
+              echo "Remote directory $FTP_SERVER_DIR is accessible."
               ;;
             6)
               echo "::error::FTP hostname could not be resolved. Check FTP_SERVER."
@@ -80,7 +84,7 @@ jobs:
               exit "$status"
               ;;
             9)
-              echo "::error::FTP login succeeded, but /public_html/ is not accessible from this account. Check the remote directory shown in FileZilla."
+              echo "::error::FTP login succeeded, but $FTP_SERVER_DIR is not accessible from this account. Set the FTP_SERVER_DIR secret to the directory shown after login in FileZilla."
               exit "$status"
               ;;
             67)
@@ -93,15 +97,16 @@ jobs:
               ;;
           esac
 
-      - name: Deploy to public_html
+      - name: Deploy website
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || '.' }}
         run: |
           sudo apt-get install -y lftp > /dev/null 2>&1
 
-          echo "=== Deploying to /public_html/ ==="
+          echo "=== Deploying to $FTP_SERVER_DIR ==="
           lftp -c "
             set cmd:fail-exit yes;
             set net:max-retries 5;
@@ -112,7 +117,7 @@ jobs:
             set ftp:passive-mode yes;
             open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_SERVER\";
             pwd;
-            mirror --reverse --delete --verbose ./dist/ /public_html/;
+            mirror --reverse --delete --verbose ./dist/ \"$FTP_SERVER_DIR/\";
             bye
           "
 
