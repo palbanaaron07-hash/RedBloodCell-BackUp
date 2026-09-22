@@ -16,12 +16,7 @@
         return;
       }
 
-      // Only auto-redirect when the login page was opened for a specific destination.
-      // This prevents a previously saved session from immediately taking over when a user
-      // simply opens the sign-in page to log in with another account.
-      if (nextDestination) {
-        await redirectIfLoggedIn();
-      }
+      await redirectIfLoggedIn();
     })();
 
     const passwordInput = document.getElementById('password');
@@ -126,17 +121,13 @@
 
         // Role-based redirect
         setTimeout(() => {
-          if (nextDestination) {
+          const dashboardDestination = getDashboardDestination(data.user, data.profile);
+          if (nextDestination && dashboardDestination !== 'admin_dashboard.html') {
             window.location.href = nextDestination;
             return;
           }
 
-          const role = data.profile.role;
-          if (role === 'admin') {
-            window.location.href = 'admin_dashboard.html';
-          } else {
-            window.location.href = 'account_dashboard.html';
-          }
+          window.location.href = dashboardDestination;
         }, 600);
 
       } catch (error) {

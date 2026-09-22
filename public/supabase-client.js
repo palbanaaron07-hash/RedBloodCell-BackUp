@@ -1247,7 +1247,7 @@ async function signOut() {
   } catch (err) {
     console.warn('Error during signOut:', err);
   } finally {
-    window.location.replace('login.html');
+    window.location.replace('index.html');
   }
 }
 
@@ -1281,21 +1281,84 @@ async function clearAuthSession() {
   }
 }
 
+function hasPersistedAuthSession() {
+  const storageHasAuthToken = (storage) => {
+    try {
+      if (!storage) return false;
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index) || '';
+        if (key.startsWith('sb-') && key.endsWith('-auth-token') && storage.getItem(key)) {
+          return true;
+        }
+      }
+    } catch (_) { }
+    return false;
+  };
+
+  return storageHasAuthToken(window.localStorage) || storageHasAuthToken(window.sessionStorage);
+}
+
+async function getValidAuthSession() {
+  if (!SUPABASE_CONFIGURED) {
+    return { session: null, state: 'signed_out', error: null };
+  }
+
+  const hadPersistedSession = hasPersistedAuthSession();
+
+  try {
+    const sessionResult = await supabaseClient.auth.getSession();
+    let session = sessionResult.data?.session || null;
+    const expiresAt = Number(session?.expires_at || 0) * 1000;
+    const needsRefresh = Boolean(session && expiresAt && expiresAt <= Date.now() + 60_000);
+
+    if (sessionResult.error || needsRefresh || (!session && hadPersistedSession)) {
+      const refreshResult = await supabaseClient.auth.refreshSession();
+      session = refreshResult.data?.session || null;
+
+      if (refreshResult.error || !session) {
+        return {
+          session: null,
+          state: hadPersistedSession || needsRefresh ? 'expired' : 'signed_out',
+          error: refreshResult.error || sessionResult.error || null
+        };
+      }
+    }
+
+    return {
+      session,
+      state: session ? 'authenticated' : 'signed_out',
+      error: null
+    };
+  } catch (error) {
+    return {
+      session: null,
+      state: hadPersistedSession ? 'expired' : 'signed_out',
+      error
+    };
+  }
+}
+
 async function getCurrentUser() {
   if (!SUPABASE_CONFIGURED) {
-    return { user: null, profile: null };
+    return { user: null, profile: null, authState: 'signed_out' };
   }
+
+  const authSession = await getValidAuthSession();
+  if (!authSession.session) {
+    return { user: null, profile: null, authState: authSession.state, error: authSession.error };
+  }
+
   try {
-    const { data, error } = await supabaseClient.auth.getUser();
+    const { data, error } = await supabaseClient.auth.getUser(authSession.session.access_token);
     if (error || !data?.user) {
-      return { user: null, profile: null };
+      return { user: null, profile: null, authState: 'expired', error };
     }
 
     const userEmail = data.user?.email || '';
     const { profile: adminProfile, error: adminError } = await resolveAdminProfile(userEmail);
 
     if (adminError) {
-      return { user: null, profile: null };
+      return { user: data.user, profile: null, authState: 'authenticated', error: adminError };
     }
 
     let profile = null;
@@ -1303,7 +1366,9 @@ async function getCurrentUser() {
       profile = adminProfile;
     } else {
       const accountResult = await resolveRegularUserProfile(data.user);
-      if (accountResult.error) return { user: null, profile: null };
+      if (accountResult.error) {
+        return { user: data.user, profile: null, authState: 'authenticated', error: accountResult.error };
+      }
       profile = accountResult.profile;
     }
 
@@ -1312,23 +1377,39 @@ async function getCurrentUser() {
         id: data.user.id,
         email: data.user.email
       },
-      profile
+      profile,
+      authState: 'authenticated'
     };
-  } catch (_) {
-    return { user: null, profile: null };
+  } catch (error) {
+    return { user: authSession.session.user || null, profile: null, authState: 'authenticated', error };
   }
+}
+
+function getDashboardDestination(user, profile) {
+  const metadataRoles = [
+    ...(Array.isArray(user?.user_metadata?.roles) ? user.user_metadata.roles : []),
+    user?.user_metadata?.role
+  ].map((role) => String(role || '').trim().toLowerCase());
+  const profileRoles = Array.isArray(profile?.roles) ? profile.roles : [];
+  const isAdmin =
+    profile?.role === 'admin' ||
+    profileRoles.includes('admin') ||
+    metadataRoles.includes('admin') ||
+    isKnownAdminEmail(profile?.email || user?.email || '');
+
+  return isAdmin ? 'admin_dashboard.html' : 'account_dashboard.html';
 }
 
 async function requireAdmin() {
   const { user, profile } = await getCurrentUser();
 
   if (!user || !profile) {
-    window.location.href = 'login.html';
+    window.location.replace('login.html');
     return null;
   }
 
   if (profile.role !== 'admin') {
-    window.location.href = 'login.html';
+    window.location.replace(getDashboardDestination(user, profile));
     return null;
   }
 
@@ -1339,7 +1420,12 @@ async function requireAuth() {
   const { user, profile } = await getCurrentUser();
 
   if (!user || !profile) {
-    window.location.href = 'login.html';
+    window.location.replace('login.html');
+    return null;
+  }
+
+  if (profile.role === 'admin') {
+    window.location.replace('admin_dashboard.html');
     return null;
   }
 
@@ -1347,15 +1433,14 @@ async function requireAuth() {
 }
 
 async function redirectIfLoggedIn() {
-  const { user, profile } = await getCurrentUser();
+  const { user, profile, authState } = await getCurrentUser();
 
-  if (user && profile) {
-    if (profile.role === 'admin') {
-      window.location.href = 'admin_dashboard.html';
-    } else {
-      window.location.href = 'account_dashboard.html';
-    }
+  if (user) {
+    window.location.replace(getDashboardDestination(user, profile));
+    return { redirected: true, authState };
   }
+
+  return { redirected: false, authState };
 }
 
 async function listDonors() {

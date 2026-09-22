@@ -797,7 +797,7 @@ if (logoutBtn) {
   logoutBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     if (typeof signOut === 'function') await signOut();
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
   });
 }
 

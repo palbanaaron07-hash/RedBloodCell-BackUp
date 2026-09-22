@@ -1810,3 +1810,6 @@ body.page-leave main {
     font-size: .9rem;
   }
 }
+html.auth-checking body {
+  visibility: hidden;
+}

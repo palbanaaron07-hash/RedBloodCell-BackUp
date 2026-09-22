@@ -4,6 +4,7 @@
      */
     window.addEventListener('pageshow', () => {
       document.body.classList.remove('page-leave');
+      refreshHomeSession();
 
       window.requestAnimationFrame(() => {
         const expectedStyle = getComputedStyle(document.documentElement)
@@ -157,22 +158,39 @@
       });
     });
 
+    let homeSessionCheck = null;
+
     async function refreshHomeSession() {
-      try {
-        if (typeof getCurrentUser !== 'function') return;
-        const { user, profile } = await getCurrentUser();
-        const loginLink = document.querySelector('.top-actions .login-link');
-        if (loginLink) {
-          if (user && profile) {
-            const isAdmin = profile.roles?.includes('admin') || profile.role === 'admin';
-            loginLink.innerHTML = '<i class="fa-solid fa-gauge" aria-hidden="true"></i> Dashboard';
-            loginLink.href = isAdmin ? 'admin_dashboard.html' : 'account_dashboard.html';
-          } else {
-            loginLink.innerHTML = '<i class="fa-regular fa-user" aria-hidden="true"></i> Login';
-            loginLink.href = 'login.html';
+      if (homeSessionCheck) return homeSessionCheck;
+      document.documentElement.classList.add('auth-checking');
+
+      homeSessionCheck = (async () => {
+        try {
+          if (typeof getCurrentUser !== 'function') {
+            document.documentElement.classList.remove('auth-checking');
+            return;
           }
+          const { user, profile, authState } = await getCurrentUser();
+
+          if (user) {
+            window.location.replace(getDashboardDestination(user, profile));
+            return;
+          }
+
+          if (authState === 'expired') {
+            window.location.replace('login.html?session=expired');
+            return;
+          }
+
+          document.documentElement.classList.remove('auth-checking');
+        } catch (_) {
+          document.documentElement.classList.remove('auth-checking');
+        } finally {
+          homeSessionCheck = null;
         }
-      } catch (_) { }
+      })();
+
+      return homeSessionCheck;
     }
 
     refreshHomeSession();

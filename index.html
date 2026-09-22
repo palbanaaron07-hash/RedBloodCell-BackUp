@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="auth-checking">
 
 <head>
   <meta charset="UTF-8" />
@@ -7,9 +7,10 @@
   <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
   <title>BloodConnect - Blood System Home</title>
+  <script src="/auth-bootstrap.js?v=20260922a"></script>
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="stylesheet" href="home.css?v=20260901d" />
+  <link rel="stylesheet" href="home.css?v=20260922authflow" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -287,8 +288,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/supabase-client.js?v=20260824b"></script>
-  <script src="/scripts/pages/home.js?v=20260901b"></script>
+  <script src="/supabase-client.js?v=20260922authflow"></script>
+  <script src="/scripts/pages/home.js?v=20260922authflow"></script>
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>
 

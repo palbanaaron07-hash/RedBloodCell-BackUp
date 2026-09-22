@@ -3635,11 +3635,7 @@ async function handleConfirmLogout(event) {
 
   // Guaranteed fallback redirect if anything delays
   const fallbackRedirect = setTimeout(() => {
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-    } catch (_) { }
-    window.location.replace('login.html');
+    window.location.replace('index.html');
   }, 700);
 
   try {
@@ -3649,11 +3645,11 @@ async function handleConfirmLogout(event) {
       if (typeof clearAuthSession === 'function') {
         await clearAuthSession();
       }
-      window.location.replace('login.html');
+      window.location.replace('index.html');
     }
   } catch (err) {
     console.warn('Logout error:', err);
-    window.location.replace('login.html');
+    window.location.replace('index.html');
   } finally {
     clearTimeout(fallbackRedirect);
   }

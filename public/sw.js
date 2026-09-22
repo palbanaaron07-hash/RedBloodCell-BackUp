@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bloodconnect-pwa-v27';
+const CACHE_NAME = 'bloodconnect-pwa-v28';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -15,6 +15,7 @@ const APP_SHELL = [
   '/patient_notifications.html',
   '/admin_dashboard.html',
   '/manifest.webmanifest',
+  '/auth-bootstrap.js',
   '/pull-to-refresh.js',
   '/supabase-client.js',
   '/account_notifications.js',
