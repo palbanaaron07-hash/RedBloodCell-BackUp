@@ -7,6 +7,12 @@ on:
       - deploy-test
   workflow_dispatch:
 
+# Overlapping uploads to the same FTP account leave stale .in.* temp files
+# behind, so only one deploy may run at a time.
+concurrency:
+  group: ftp-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Build & Upload to Server
@@ -138,6 +144,35 @@ jobs:
 
           sudo apt-get install -y lftp > /dev/null 2>&1
 
+          # Pure-FTPd uploads into hidden ".in.<name>." files and refuses to
+          # overwrite one left behind by an interrupted upload. Remove any
+          # stale temp file for every path we are about to upload.
+          cleanup_script="$RUNNER_TEMP/ftp-cleanup.lftp"
+          remote_root="${FTP_SERVER_DIR%/}"
+          : > "$cleanup_script"
+          (cd dist && find . -type f) | while IFS= read -r path; do
+            path="${path#./}"
+            dir=$(dirname "$path")
+            base=$(basename "$path")
+            if [ "$dir" = "." ]; then
+              stale=".in.$base."
+            else
+              stale="$dir/.in.$base."
+            fi
+            printf 'rm -f "%s/%s"\n' "$remote_root" "$stale" >> "$cleanup_script"
+          done
+
+          echo "=== Removing stale upload temp files ==="
+          lftp -c "
+            set net:max-retries 5;
+            set net:timeout 30;
+            set ftp:ssl-allow no;
+            set ftp:passive-mode yes;
+            open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_URL\";
+            source \"$cleanup_script\";
+            bye
+          " || true
+
           echo "=== Deploying to $FTP_SERVER_DIR ==="
           lftp -c "
             set cmd:fail-exit yes;
@@ -149,7 +184,7 @@ jobs:
             set ftp:passive-mode yes;
             open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_URL\";
             pwd;
-            mirror --reverse --delete --verbose --exclude-glob .well-known/ --exclude-glob cgi-bin/ --exclude-glob .user.ini ./dist/ \"$FTP_SERVER_DIR/\";
+            mirror --reverse --delete --verbose --exclude-glob .well-known/ --exclude-glob cgi-bin/ --exclude-glob public_html/ --exclude-glob public_html --exclude-glob '.in.*' --exclude-glob .user.ini ./dist/ \"$FTP_SERVER_DIR/\";
             bye
           "
 
