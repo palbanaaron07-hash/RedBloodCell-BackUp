@@ -1,12 +1,35 @@
-#donorPanel .panel-header { flex-wrap: wrap; gap: 16px; }
+#donorPanel { width: 100%; min-width: 0; }
+#donorPanel .donor-directory-header { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 2px 0 14px; }
+#donorPanel .donor-directory-header h3 { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--gray-800); font-family: 'Sora', sans-serif; font-size: 1rem; }
+#donorPanel .donor-directory-header h3 i { color: var(--blood-rich); font-size: .88rem; }
 #donorPanel .donor-filters { flex-wrap: wrap; gap: 12px; align-items: flex-end; }
 #donorPanel .donor-filters label { display: grid; gap: 5px; font-size: .72rem; font-weight: 600; color: var(--gray-500); }
 #donorPanel .donor-filters select { min-height: 36px; padding: 7px 30px 7px 10px; border: 1px solid #f2d6d8; border-radius: 8px; background: #fff; color: #800000; font: inherit; font-size: .8rem; }
 #donorPanel .donor-filters select:focus-visible, #clearDonorFilters:focus-visible { outline: 2px solid #800000; outline-offset: 2px; }
 #clearDonorFilters { min-height: 36px; color: #800000; }
 #clearDonorFilters:disabled { opacity: .45; cursor: default; }
-#donorPanel .donor-filter-summary { margin: 0; padding: 10px 18px; color: var(--gray-500); font-size: .78rem; background: #fbf2f3; }
+#donorPanel .donor-filter-summary { margin: 0; padding: 9px 0; color: var(--gray-500); font-size: .78rem; border-top: 1px solid var(--gray-200); }
+#donorPanel .donor-table-wrap { width: 100%; overflow: visible; border-top: 1px solid var(--gray-200); }
+#donorTable { width: 100%; table-layout: fixed; }
+#donorTable th, #donorTable td { padding: 11px 8px; white-space: normal; vertical-align: middle; }
+#donorTable th:nth-child(1) { width: 26%; }
+#donorTable th:nth-child(2) { width: 8%; }
+#donorTable th:nth-child(3) { width: 17%; }
+#donorTable th:nth-child(4) { width: 14%; }
+#donorTable th:nth-child(5) { width: 12%; }
+#donorTable th:nth-child(6) { width: 17%; }
+#donorTable th:nth-child(7) { width: 6%; }
+#donorTable .donor-cell { min-width: 0; }
+#donorTable .donor-cell > div:last-child { min-width: 0; }
+#donorTable .donor-name, #donorTable .donor-email { white-space: normal; overflow-wrap: anywhere; }
+#donorTable .badge, #donorTable .type-pill, #donorTable .map-status-pill, #donorTable .waiting-pill { max-width: 100%; white-space: normal; text-align: left; line-height: 1.25; }
+#donorTable .donor-contact-cell, #donorTable .donor-donation-cell { line-height: 1.35; overflow-wrap: anywhere; }
+#donorTable .donor-contact-cell small, #donorTable .donor-donation-label { display: block; margin-top: 3px; color: var(--gray-400); font-size: .68rem; }
+#donorTable .donor-donation-cell .waiting-pill, #donorTable .donor-donation-cell .badge { margin-top: 4px; }
+#donorTable .btn-row-action { padding: 6px 8px; }
 @media (max-width: 600px) {
   #donorPanel .donor-filters { width: 100%; }
   #donorPanel .donor-filters label { flex: 1 1 140px; }
+  #donorPanel .donor-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0; padding: 0; }
+  #donorTable { min-width: 760px; width: 760px; table-layout: fixed; }
 }

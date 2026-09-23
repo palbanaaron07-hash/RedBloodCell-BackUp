@@ -587,6 +587,24 @@ body.page-leave {
   color: #941c29;
 }
 
+.location-locked input[readonly] {
+  padding-right: 44px !important;
+  background: #f8f3f4;
+  color: #64252d;
+  font-weight: 700;
+  cursor: default;
+}
+
+.location-lock-icon {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+  color: #9a6a70;
+  font-size: .78rem;
+  pointer-events: none;
+}
+
 .input-wrapper.location-combobox input,
 .location-combobox input {
   padding-left: 44px !important;

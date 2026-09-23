@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 
 const patient = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 const card = patient.slice(patient.indexOf('function renderRequestCard('), patient.indexOf('let pendingBloodReceipt'));
-assert.match(card, /const canComplete = !isReplacement/);
+assert.match(card, /const canComplete = hasActivePledge/);
 const receipt = patient.slice(patient.indexOf('function markBloodReceived('), patient.indexOf('function closeBloodReceivedDialog'));
 assert.match(receipt, /request\.request_type === 'replacement'/);
-assert.match(receipt, /confirmed by the coordinator using facility records/);
+assert.match(receipt, /coordinator confirms the required replacement donations/);
 
 const admin = fs.readFileSync(new URL('../public/scripts/pages/admin-dashboard.js', import.meta.url), 'utf8');
 for (const expected of [

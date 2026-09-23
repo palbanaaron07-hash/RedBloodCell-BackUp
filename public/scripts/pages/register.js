@@ -317,14 +317,12 @@
     const provinceInput = document.getElementById('province');
     const cityInput = document.getElementById('city');
     const barangayInput = document.getElementById('address');
-    const provinceOptions = document.getElementById('provinceOptions');
     const cityOptions = document.getElementById('cityOptions');
     const barangayOptions = document.getElementById('barangayOptions');
     const provinceHelp = document.getElementById('provinceHelp');
     const cityHelp = document.getElementById('cityHelp');
     const barangayHelp = document.getElementById('barangayHelp');
     const psgcCache = new Map();
-    let psgcProvinces = [];
     let psgcLocalities = [];
     let selectedProvinceCode = '';
     let selectedLocalityCode = '';
@@ -590,18 +588,8 @@
       }
     }
 
-    function handleProvinceInput() {
-      const province = findLocationByName(psgcProvinces, provinceInput.value);
-      if (province) {
-        loadLocalitiesForProvince(province);
-      } else if (selectedProvinceCode) {
-        resetCitySuggestions();
-        cityInput.placeholder = 'Type city / municipality';
-        setLocationHelp(cityHelp, 'Choose a suggested province for matching localities, or type manually.');
-      }
-    }
-
     function handleCityInput() {
+      cityInput.setCustomValidity('');
       const locality = findLocationByName(psgcLocalities, cityInput.value);
       if (locality) {
         loadBarangaysForLocality(locality);
@@ -612,7 +600,8 @@
     }
 
     async function initializePhilippineAddressSuggestions() {
-      initializeLocationCombobox(provinceInput, provinceOptions, loadLocalitiesForProvince);
+      provinceInput.value = 'Bohol';
+      provinceInput.readOnly = true;
       initializeLocationCombobox(cityInput, cityOptions, loadBarangaysForLocality);
       initializeLocationCombobox(barangayInput, barangayOptions, () => {});
       document.addEventListener('click', (event) => {
@@ -622,26 +611,22 @@
       });
       window.addEventListener('resize', () => closeLocationSuggestions());
       document.querySelector('.form-card')?.addEventListener('scroll', () => closeLocationSuggestions());
-      provinceInput.addEventListener('input', handleProvinceInput);
-      provinceInput.addEventListener('change', handleProvinceInput);
       cityInput.addEventListener('input', handleCityInput);
       cityInput.addEventListener('change', handleCityInput);
 
       try {
         const provinces = await fetchPsgcList('/provinces/');
-        psgcProvinces = [
-          ...provinces,
-          { code: '130000000', name: 'Metro Manila (NCR)', kind: 'region' }
-        ].sort((a, b) => a.name.localeCompare(b.name, 'en-PH'));
-        populateLocationOptions(provinceOptions, psgcProvinces);
-        setLocationHelp(provinceHelp, `${psgcProvinces.length} province and NCR suggestions available.`);
+        const bohol = findLocationByName(provinces, 'Bohol');
+        if (!bohol) throw new Error('Bohol was not returned by PSGC.');
+        setLocationHelp(provinceHelp, 'BloodConnect currently serves Bohol.');
+        await loadLocalitiesForProvince(bohol);
       } catch (error) {
-        console.warn('PSGC province suggestions unavailable:', error);
-        provinceInput.placeholder = 'Type province';
-        cityInput.placeholder = 'Type city / municipality';
+        console.warn('Bohol municipality suggestions unavailable:', error);
+        provinceInput.value = 'Bohol';
+        cityInput.placeholder = 'Type a Bohol city / municipality';
         barangayInput.placeholder = 'Type barangay';
-        setLocationHelp(provinceHelp, 'Suggestions are unavailable. You can type the province manually.', true);
-        setLocationHelp(cityHelp, 'Enter the city or municipality manually.');
+        setLocationHelp(provinceHelp, 'BloodConnect currently serves Bohol.');
+        setLocationHelp(cityHelp, 'Suggestions are unavailable. Enter a Bohol city or municipality manually.', true);
         setLocationHelp(barangayHelp, 'Enter the barangay manually.');
       }
     }
@@ -842,7 +827,8 @@
       let dob = document.getElementById('dob').value;
       const address = document.getElementById('address').value.trim();
       const city = document.getElementById('city').value.trim();
-      const province = document.getElementById('province').value.trim();
+      const province = 'Bohol';
+      provinceInput.value = province;
       const gender = document.getElementById('gender').value;
       const bloodType = document.getElementById('blood_type').value;
       const username = document.getElementById('username').value.trim();
@@ -862,6 +848,13 @@
       if (!firstName || !lastName || !email || !phone || !dob || !address || !city || !province) {
         showAlert('Please complete all personal information fields.', 'error');
         goToStep(2);
+        return;
+      }
+      if (psgcLocalities.length && !findLocationByName(psgcLocalities, city)) {
+        cityInput.setCustomValidity('Choose a valid Bohol city or municipality.');
+        showAlert('Please choose a valid Bohol city or municipality.', 'error');
+        goToStep(2);
+        cityInput.focus();
         return;
       }
       if (!validateEmailInput(false)) {

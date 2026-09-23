@@ -2032,34 +2032,6 @@ try {
   ignoredCommunityIds = new Set(JSON.parse(sessionStorage.getItem('veindrop_ignored_requests') || '[]'));
 } catch (_) { }
 
-function syncRequestTypeFields() {
-  const requestType = document.getElementById('requestType')?.value || '';
-  const isReplacement = requestType === 'replacement';
-  const bloodTypeGroup = document.getElementById('requestBloodTypeGroup');
-  const bloodType = document.getElementById('requestBloodType');
-  const urgencyGroup = document.getElementById('requestUrgencyGroup');
-  const urgency = document.getElementById('requestUrgency');
-  const requirementsNote = document.getElementById('replacementRequirementsNote');
-  const requirementsLegend = document.getElementById('requestRequirementsLegend');
-  const unitsLabel = document.getElementById('requestUnitsLabel');
-
-  if (bloodTypeGroup) bloodTypeGroup.hidden = isReplacement;
-  if (bloodType) {
-    bloodType.disabled = isReplacement;
-    bloodType.required = !isReplacement;
-    if (isReplacement) bloodType.value = '';
-  }
-  if (urgencyGroup) urgencyGroup.hidden = isReplacement;
-  if (urgency) { urgency.disabled = isReplacement; urgency.required = !isReplacement; if (isReplacement) urgency.value = 'normal'; }
-  if (requirementsNote) requirementsNote.hidden = !isReplacement;
-  if (requirementsLegend) requirementsLegend.textContent = isReplacement ? '2. Replacement details' : '2. Blood requirements';
-  if (unitsLabel) unitsLabel.textContent = isReplacement ? 'Replacement units needed' : 'Units needed';
-  document.getElementById('requestBloodRequirementsRow')?.classList.toggle('request-single-field', isReplacement);
-  document.getElementById('requestTimingRow')?.classList.toggle('request-single-field', isReplacement);
-}
-
-document.getElementById('requestType')?.addEventListener('change', syncRequestTypeFields);
-
 function openRequestModal() {
   if (!requestSubmissionPending) {
     const form = document.getElementById('requestForm');
@@ -2067,7 +2039,6 @@ function openRequestModal() {
     const button = form.querySelector('button[type="submit"]');
     if (button) { button.disabled = false; button.textContent = 'Submit Request'; }
   }
-  if (typeof syncRequestTypeFields === 'function') syncRequestTypeFields();
   document.getElementById('requestModal').classList.add('active');
 }
 function closeRequestModal() {
@@ -2159,7 +2130,7 @@ function renderCommunityCard(r) {
   const requestTypeBadge = r.request_type === 'replacement'
     ? '<span class="request-arrangement-text">Blood Replacement</span>'
     : (r.request_type === 'emergency_donor'
-      ? '<span class="request-arrangement-text">Emergency Donor Assistance</span>'
+      ? '<span class="request-arrangement-text">Blood Request</span>'
       : '');
   const campaign = r.replacement_campaign || {};
   const replacementTarget = Number(campaign.target_units || units);
@@ -2691,7 +2662,7 @@ function renderRequestCard(r) {
   const status = lifecycle.status;
   const headerStatus = getRequestHeaderStatus(r, lifecycle);
   const fulfillmentAttribution = getFulfillmentAttribution(r, lifecycle);
-  const arrangementLabel = isReplacement ? 'Blood Replacement' : (r.request_type === 'emergency_donor' ? 'Emergency Donor Assistance' : '');
+  const arrangementLabel = isReplacement ? 'Blood Replacement' : (r.request_type === 'emergency_donor' ? 'Blood Request' : '');
   const pledges = Array.isArray(r.pledges) ? r.pledges : [];
   const activePledgedUnits = pledges
     .filter((pledge) => ['pledged', 'request_fulfilled', 'recipient_confirmed'].includes(String(pledge.status).toLowerCase()))

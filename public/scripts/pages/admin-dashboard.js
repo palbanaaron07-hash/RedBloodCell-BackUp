@@ -37,6 +37,7 @@ let overviewActivityCache = [];
 let requestsSectionCache = [];
 let inventoryByTypeCache = [];
 let latestOverviewStats = null;
+let pendingUrgentRefreshPromise = null;
 let donorCache = [];
 let requestFilter = 'all';
 let currentAdminContext = { userId: '', email: '', fullName: '' };
@@ -1564,6 +1565,7 @@ function initBloodDrivesRealtime() {
 function getReportsSnapshot() {
   const requests = Array.isArray(requestsSectionCache) ? requestsSectionCache : [];
   const donors = Array.isArray(donorCache) ? donorCache : [];
+  const compatibleTypes = RED_CELL_COMPATIBILITY[neededType] || [neededType];
   const inventoryRows = getInventoryRowsWithAllTypes();
   const statusCounts = {
     pending: 0,
@@ -1943,6 +1945,7 @@ function renderReportsSection() {
   const query = getSearchQuery();
   const requests = Array.isArray(requestsSectionCache) ? requestsSectionCache : [];
   const donors = Array.isArray(donorCache) ? donorCache : [];
+  const compatibleTypes = RED_CELL_COMPATIBILITY[neededType] || [neededType];
   const inventoryRows = getInventoryRowsWithAllTypes();
 
   const statusCounts = {
@@ -2192,8 +2195,44 @@ function updateRequestsStatsCards(sourceRows = []) {
   setText('requestsFulfilledCount', formatNumber(fulfilled));
 }
 
+function isPendingUrgentRequest(row) {
+  if (typeof isPendingUrgentRequestRecord === 'function') {
+    return isPendingUrgentRequestRecord(row);
+  }
+  return isUrgentRequest(row) && isPendingRequest(row);
+}
+
 function getPendingUrgentCountFromCache() {
-  return overviewRequestsCache.filter((row) => isUrgentRequest(row) && isPendingRequest(row)).length;
+  const rows = requestsSectionCache.length > 0 ? requestsSectionCache : overviewRequestsCache;
+  return rows.filter(isPendingUrgentRequest).length;
+}
+
+async function refreshPendingUrgentRequestsKpi() {
+  if (pendingUrgentRefreshPromise) return pendingUrgentRefreshPromise;
+
+  pendingUrgentRefreshPromise = (async () => {
+    if (typeof getPendingUrgentRequestCount !== 'function') {
+      const fallbackCount = getPendingUrgentCountFromCache();
+      setOverviewUrgentPendingKpi(fallbackCount);
+      return fallbackCount;
+    }
+
+    const { data, error } = await getPendingUrgentRequestCount();
+    if (!error && Number.isFinite(Number(data))) {
+      const count = Math.max(0, Number(data));
+      setOverviewUrgentPendingKpi(count);
+      return count;
+    }
+
+    const fallbackCount = getPendingUrgentCountFromCache();
+    setOverviewUrgentPendingKpi(fallbackCount);
+    console.warn('Using cached pending urgent request count:', error?.message || 'Count service unavailable.');
+    return fallbackCount;
+  })().finally(() => {
+    pendingUrgentRefreshPromise = null;
+  });
+
+  return pendingUrgentRefreshPromise;
 }
 
 function setOverviewUrgentPendingKpi(value) {
@@ -2233,6 +2272,7 @@ function setSidebarBadge(sectionName, value, urgent = false) {
 }
 
 async function refreshOverviewStats() {
+  refreshPendingUrgentRequestsKpi();
   const { data, error } = await getAdminOverviewStats();
   if (error || !data) {
     console.error('Failed to refresh overview stats:', error);
@@ -2248,16 +2288,6 @@ async function refreshOverviewStats() {
     data.scheduled_donations_today ??
     0
   );
-  const urgentFromStats = Number(
-    data.pending_urgent_requests ??
-    data.urgent_pending_requests ??
-    data.urgent_requests_count ??
-    NaN
-  );
-  const pendingUrgent = Number.isFinite(urgentFromStats)
-    ? urgentFromStats
-    : getPendingUrgentCountFromCache();
-
   document.getElementById('overviewKpiTotalDonors').textContent = formatNumber(donorsCount);
   document.getElementById('overviewKpiTodayScheduled').textContent = formatNumber(todayScheduled);
   document.getElementById('overviewKpiTotalStock').textContent = formatNumber(totalStock);
@@ -2268,8 +2298,6 @@ async function refreshOverviewStats() {
     todayScheduled > 0 ? 'Confirmed schedule count for today' : 'No schedules for today';
   document.getElementById('overviewKpiTotalStockNote').textContent =
     totalStock > 0 ? 'Live total across blood inventory' : 'No inventory data yet';
-
-  setOverviewUrgentPendingKpi(pendingUrgent);
 
   const pendingRequestsCount = requestsSectionCache.length > 0
     ? requestsSectionCache.filter((r) => normalizeRequestStatus(r.status) === 'pending').length
@@ -2356,15 +2384,7 @@ async function refreshOverviewRequestsPanel() {
   const pendingRequestsCount = requestsSectionCache.filter((r) => normalizeRequestStatus(r.status) === 'pending').length;
   setSidebarBadge('requests', pendingRequestsCount, pendingRequestsCount > 0);
 
-  const pendingUrgentFromStats = Number(
-    latestOverviewStats?.pending_urgent_requests ??
-    latestOverviewStats?.urgent_pending_requests ??
-    latestOverviewStats?.urgent_requests_count ??
-    NaN
-  );
-  if (!Number.isFinite(pendingUrgentFromStats)) {
-    setOverviewUrgentPendingKpi(getPendingUrgentCountFromCache());
-  }
+  refreshPendingUrgentRequestsKpi();
 
   buildOverviewActivityCache();
   renderOverviewActivityFeed();
@@ -2685,6 +2705,7 @@ async function refreshRequestsSection() {
   }
 
   requestsSectionCache = Array.isArray(data) ? data : [];
+  refreshPendingUrgentRequestsKpi();
   const pendingRequestsCount = requestsSectionCache.filter((r) => normalizeRequestStatus(r.status) === 'pending').length;
   setSidebarBadge('requests', pendingRequestsCount, pendingRequestsCount > 0);
   updateRequestsStatsCards(requestsSectionCache);
@@ -3403,7 +3424,7 @@ function openAdminRequestDetails(requestId) {
       <div class="request-detail-field"><span><i class="fa-solid fa-user" aria-hidden="true"></i>Requester</span><strong>${escapeHtml(patientName)}</strong></div>
       <div class="request-detail-field"><span><i class="fa-solid fa-phone" aria-hidden="true"></i>Contact</span><strong>${escapeHtml(phone)}</strong></div>
       <div class="request-detail-field"><span><i class="fa-solid fa-hospital" aria-hidden="true"></i>Location / Hospital</span><strong>${escapeHtml(hospital)}</strong></div>
-      <div class="request-detail-field"><span><i class="fa-solid fa-file-medical" aria-hidden="true"></i>Request type</span><strong>${row.request_type === 'replacement' ? 'Hospital replacement' : row.request_type === 'emergency_donor' ? 'Emergency donor assistance' : 'Blood request'}</strong></div>
+      <div class="request-detail-field"><span><i class="fa-solid fa-file-medical" aria-hidden="true"></i>Request type</span><strong>${row.request_type === 'replacement' ? 'Hospital replacement' : 'Blood request'}</strong></div>
       <div class="request-detail-field request-detail-field--wide"><span><i class="fa-regular fa-clock" aria-hidden="true"></i>Needed time</span><strong>${escapeHtml(neededTimeDisplay)}</strong></div>
     </div>
     <section class="request-detail-notes"><h4>Description / Notes</h4><p>${escapeHtml(descriptionNotes)}</p></section>
@@ -3527,7 +3548,7 @@ function renderRequestsSection() {
             ${isReplacement || isEmergencyDonor ? `<p style="font-size:.78rem;color:#64748b;">${escapeHtml(statusSummaryStr)}</p>` : ''}
             ${isEmergencyDonor && row.recipient_received_at ? '<p style="font-size:.74rem;color:#166534;font-weight:700;"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Blood received confirmed by requester</p>' : ''}
             <div style="font-size:.78rem;color:#64748b;margin-bottom:4px;">
-              ${isReplacement ? `${units} replacement donor${units === 1 ? '' : 's'} · Any eligible blood type` : `${units} unit${units === 1 ? '' : 's'} of ${escapeHtml(bloodType)}`}${row.request_type === 'replacement' ? ' · Hospital replacement' : row.request_type === 'emergency_donor' ? ' · Emergency donor assistance' : ''}${communityLifecycle.status === 'active' && isUrgent ? ' · Urgent' : ''}
+              ${isReplacement ? `${units} replacement donor${units === 1 ? '' : 's'} · Any eligible blood type · Hospital replacement` : `${units} unit${units === 1 ? '' : 's'} of ${escapeHtml(bloodType)}`}${communityLifecycle.status === 'active' && isUrgent ? ' · Urgent' : ''}
             </div>
             <div style="font-size:0.74rem; color:var(--gray-500); display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
               <i class="fa-solid fa-location-dot" style="font-size:0.68rem;color:#94a3b8;"></i>
@@ -3593,10 +3614,14 @@ function openMobilizeDonorsModal(requestId) {
   document.getElementById('mobilizeBloodTypeBadge').textContent = neededType;
   document.getElementById('mobilizeQuantityText').textContent = `${quantity} Unit(s) Needed`;
 
-  // The facility makes the final medical match; show every currently eligible donor.
+  // Show only donors whose red-cell type is compatible with the requested type.
+  // The facility still makes the final medical and crossmatch decision.
   const donors = Array.isArray(donorCache) ? donorCache : [];
+  const compatibleTypes = RED_CELL_COMPATIBILITY[neededType] || [neededType];
   const matchingDonors = donors.filter((d) => (
-    isDonorEligibleForAppeal(d) && !isDonorTheRequester(d, patient)
+    isDonorEligibleForAppeal(d)
+    && !isDonorTheRequester(d, patient)
+    && (request.request_type === 'replacement' || compatibleTypes.includes(normalizeBloodType(d.blood_type)))
   ));
 
   document.getElementById('mobilizeMatchCount').textContent = matchingDonors.length;
@@ -3932,7 +3957,9 @@ function openDonorProfileModal(donorId) {
     }
   }
 
-  document.getElementById('profileMapArea').value = donor.map_area || donor.address || '';
+  const storedMapArea = String(donor.map_area || '').trim();
+  const municipality = normalizeBoholMapArea(storedMapArea || donor.address);
+  document.getElementById('profileMapArea').value = municipality || storedMapArea;
   syncLocationVerification(donor);
   document.getElementById('mapSettingsMsg').textContent = '';
   document.getElementById('mapSettingsMsg').className = 'form-msg';
@@ -3990,18 +4017,28 @@ function syncLocationVerification(donor, edited = false) {
   if (!area || !status) return;
   const missing = !area.value.trim();
   const changed = area.value.trim() !== String(donor?.map_area || '').trim();
+  const recognizedArea = normalizeBoholMapArea(area.value);
   status.disabled = missing;
-  status.querySelector('option[value="verified"]').disabled = changed;
+  status.querySelector('option[value="verified"]').disabled = changed && !recognizedArea;
   if (missing) status.value = 'missing';
+  else if (recognizedArea) status.value = 'verified';
   else if (changed || (edited && status.value === 'missing')) status.value = 'needs_review';
   else if (!edited) status.value = donor?.location_status === 'verified' ? 'verified' : 'needs_review';
   if (help) help.textContent = missing
     ? 'Enter a map area before location verification.'
+    : recognizedArea
+      ? `${recognizedArea} is recognized and will be verified automatically when saved.`
     : changed
       ? 'Location changed. Save the area first, then review and verify it.'
-      : 'Confirm the area before verifying. Map visibility is controlled separately.';
+      : 'This location is not recognized automatically. Confirm it before verifying.';
 }
 document.getElementById('profileMapArea')?.addEventListener('input', () => {
+  const donor = donorCache.find(item => Number(item.id) === Number(activeDonorId));
+  syncLocationVerification(donor, true);
+});
+document.getElementById('profileMapArea')?.addEventListener('blur', (event) => {
+  const municipality = normalizeBoholMapArea(event.currentTarget.value);
+  if (municipality) event.currentTarget.value = municipality;
   const donor = donorCache.find(item => Number(item.id) === Number(activeDonorId));
   syncLocationVerification(donor, true);
 });
@@ -4213,7 +4250,7 @@ function renderDonorRows() {
   if (clearButton) clearButton.disabled = donorFilter === 'all' && donorBloodTypeFilter === 'all' && !getSearchQuery();
   if (!donors || donors.length === 0) {
     const message = donorCache.length ? 'No donors match these filters.' : 'No donors yet.';
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--slate-400);padding:32px;">${message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--slate-400);padding:32px;">${message}</td></tr>`;
     return;
   }
 
@@ -4235,12 +4272,17 @@ function renderDonorRows() {
             </div>
           </td>
           <td><span class="type-pill">${escapeHtml(d.blood_type || '-')}</span></td>
-          <td>${escapeHtml(d.phone || '-')}</td>
+          <td class="donor-contact-cell">
+            <span>${escapeHtml(d.phone || '-')}</span>
+            <small>Registered ${date}</small>
+          </td>
           <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
           <td>${getMapVisibilityBadge(d)}</td>
-          <td>${d.last_donation_date ? formatDateShort(d.last_donation_date) : '<span style="color:var(--gray-400);font-size:.8rem;">Never</span>'}</td>
-          <td>${formatNextEligible(d.last_donation_date)}</td>
-          <td>${date}</td>
+          <td class="donor-donation-cell">
+            <span class="donor-donation-label">Last donated</span>
+            ${d.last_donation_date ? formatDateShort(d.last_donation_date) : '<span style="color:var(--gray-400);font-size:.8rem;">Never</span>'}
+            <div>${formatNextEligible(d.last_donation_date)}</div>
+          </td>
           <td><button type="button" class="btn-row-action" onclick="openDonorProfileModal(${Number(d.id)})"><i class="fa-solid fa-eye"></i> View</button></td>
         </tr>`;
   }).join('');
@@ -4265,7 +4307,7 @@ async function loadDonors() {
     const tbody = document.getElementById('donorTableBody');
     if (tbody) {
       donorCache = [];
-      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#ef4444;padding:32px;">Failed to load donors: ${escapeHtml(err?.message || 'Unknown error')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ef4444;padding:32px;">Failed to load donors: ${escapeHtml(err?.message || 'Unknown error')}</td></tr>`;
     }
   }
 }
@@ -5343,15 +5385,12 @@ document.getElementById('inventoryForm').addEventListener('submit', async (e) =>
 
 // ==================== NOTIFICATIONS SYSTEM ====================
 
-let notificationsStore = [];          // master list
-let notifFilter = 'all';              // active filter
+let notificationsStore = [];
+let notifFilter = 'all';
 let notifRealtimeChannel = null;
-let notifRequestPollTimer = null;
-let notifRequestPollSeeded = false;
-const notifKnownRequestIds = new Set();
-let notifNextId = 1;
-const NOTIF_READ_KEY = 'bloodconnect_read_notifications';
-const NOTIF_DISMISSED_KEY = 'bloodconnect_dismissed_notifications';
+let notifOwnSubscription = null;
+let notifLoading = false;
+let notifError = '';
 
 const NOTIF_ICONS = {
   donor: { icon: 'fa-user-plus', cls: 'notif-type-donor' },
@@ -5361,444 +5400,366 @@ const NOTIF_ICONS = {
   system: { icon: 'fa-circle-info', cls: 'notif-type-system' }
 };
 
-/** Push a new notification into the store */
-function pushNotification({ type = 'system', title, body, critical = false, link = null, key = null }) {
-  const id = notifNextId++;
+function getAdminNotificationCategory(notification) {
+  const recordType = String(notification?.related_record_type || '').toLowerCase();
+  const type = String(notification?.notification_type || '').toLowerCase();
+  if (recordType === 'blood_request' || type.includes('request') || type.includes('pledge')) return 'request';
+  if (recordType === 'blood_inventory' || type.includes('inventory') || type.includes('stock')) return 'inventory';
+  if (recordType === 'donor' || type.includes('donor')) return 'donor';
+  return 'system';
+}
 
-  // Check persistence if key exists
-  if (key) {
-    if (notificationsStore.some((item) => item.key === key)) return;
-
-    const dismissedKeys = JSON.parse(localStorage.getItem(NOTIF_DISMISSED_KEY) || '[]');
-    if (dismissedKeys.includes(key)) return; // Don't even add if dismissed
-
-    const readKeys = JSON.parse(localStorage.getItem(NOTIF_READ_KEY) || '[]');
-    var isRead = readKeys.includes(key);
-  } else {
-    var isRead = false;
-  }
-
-  const notif = {
-    id,
-    key,
-    type: critical ? 'critical' : type,
-    title,
-    body,
-    critical,
-    link,
-    read: isRead,
-    timestamp: new Date()
+function mapAdminNotification(row) {
+  const category = getAdminNotificationCategory(row);
+  const type = String(row?.notification_type || '').toLowerCase();
+  return {
+    id: Number(row.notification_id),
+    type: category,
+    title: row.title || 'Notification',
+    body: row.message || '',
+    critical: type.includes('critical') || type.includes('unavailable'),
+    read: Boolean(row.read_at),
+    timestamp: row.created_at,
+    relatedRecordType: row.related_record_type || (row.request_id ? 'blood_request' : null),
+    relatedRecordId: row.related_record_id || row.request_id || row.drive_id || null
   };
-  notificationsStore.unshift(notif);          // newest first
-  if (notificationsStore.length > 150) notificationsStore.length = 150; // cap
+}
 
-  updateNotifBadge();
-  renderNotificationsSection();
-
-  // Animated bell shake
-  const bellBtn = document.getElementById('notifBellBtn');
-  if (bellBtn) {
-    bellBtn.classList.remove('bell-shake');
-    void bellBtn.offsetWidth;                 // force reflow
-    bellBtn.classList.add('bell-shake');
-    setTimeout(() => bellBtn.classList.remove('bell-shake'), 700);
+async function loadAdminNotifications({ silent = false } = {}) {
+  if (typeof listMyAdminNotifications !== 'function') {
+    notifError = 'Notification service is unavailable.';
+    renderNotificationsSection();
+    return;
   }
-}
 
-function rememberKnownRequest(row) {
-  const requestId = Number(row?.request_id || row?.id || 0);
-  if (Number.isFinite(requestId) && requestId > 0) {
-    notifKnownRequestIds.add(requestId);
+  if (!silent) {
+    notifLoading = true;
+    notifError = '';
+    renderNotificationsSection();
   }
-}
 
-function notifyNewBloodRequest(row) {
-  if (!row) return false;
-  const requestId = Number(row.request_id || row.id || 0);
-  if (!Number.isFinite(requestId) || requestId <= 0) return false;
-  if (!isPendingRequest(row)) return false;
-  if (notifKnownRequestIds.has(requestId)) return false;
-
-  notifKnownRequestIds.add(requestId);
-  const isCrit = isUrgentRequest(row);
-  pushNotification({
-    key: `req_new_${requestId}`,
-    type: 'request',
-    title: 'New Blood Request Pending',
-    body: `${formatRequestRequirement(row)} requested${isCrit ? ' - marked URGENT' : ''}. Awaiting coordinator review.`,
-    critical: isCrit
-  });
-  return true;
-}
-
-async function pollForNewBloodRequests() {
   try {
-    const { data, error } = await getOverviewRecentRequests(25);
-    if (error || !Array.isArray(data)) return;
-
-    if (!notifRequestPollSeeded) {
-      data.forEach(rememberKnownRequest);
-      notifRequestPollSeeded = true;
-      return;
-    }
-
-    let foundNewRequest = false;
-    data.slice().reverse().forEach((row) => {
-      foundNewRequest = notifyNewBloodRequest(row) || foundNewRequest;
-    });
-    if (foundNewRequest) {
-      refreshRequestsSection();
-      refreshOverviewStats();
-    }
+    const { data, error } = await listMyAdminNotifications(150);
+    if (error) throw new Error(error.message || 'Failed to load notifications.');
+    notificationsStore = (data || [])
+      .map(mapAdminNotification)
+      .filter(item => Number.isInteger(item.id) && item.id > 0)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    notifError = '';
   } catch (error) {
-    console.warn('Request notification polling failed:', error);
+    notifError = error?.message || 'Failed to load notifications.';
+  } finally {
+    notifLoading = false;
+    updateNotifBadge();
+    renderNotificationsSection();
   }
 }
 
-function startRequestNotificationPolling() {
-  if (notifRequestPollTimer) return;
-  [...requestsSectionCache, ...overviewRequestsCache].forEach(rememberKnownRequest);
-  notifRequestPollTimer = window.setInterval(pollForNewBloodRequests, 15000);
-  setTimeout(pollForNewBloodRequests, 3000);
-}
-
-/** Compute unread count & update header badge + dot */
 function updateNotifBadge() {
-  const unread = notificationsStore.filter(n => !n.read).length;
+  const unread = notificationsStore.filter(notification => !notification.read).length;
   const dot = document.getElementById('notifDot');
   const badge = document.getElementById('notifCountBadge');
-  const sbBadge = document.getElementById('sidebarNotifBadge');
+  const sidebarBadge = document.getElementById('sidebarNotifBadge');
 
   if (dot) dot.style.display = unread > 0 ? 'block' : 'none';
   if (badge) {
     badge.style.display = unread > 0 ? 'flex' : 'none';
-    badge.textContent = unread > 99 ? '99+' : unread;
+    badge.textContent = unread > 99 ? '99+' : String(unread);
   }
-  if (sbBadge) sbBadge.textContent = unread;
+  if (sidebarBadge) sidebarBadge.textContent = String(unread);
 }
 
-/** Mark all notifications as read */
-function markAllNotificationsRead() {
-  const readKeys = JSON.parse(localStorage.getItem(NOTIF_READ_KEY) || '[]');
-  notificationsStore.forEach(n => {
-    n.read = true;
-    if (n.key && !readKeys.includes(n.key)) {
-      readKeys.push(n.key);
-    }
-  });
-  localStorage.setItem(NOTIF_READ_KEY, JSON.stringify(readKeys));
+async function markAllNotificationsRead() {
+  const unread = notificationsStore.filter(notification => !notification.read);
+  if (!unread.length || typeof markAllMyAdminNotificationsRead !== 'function') return;
+
+  const readAt = new Date().toISOString();
+  unread.forEach(notification => { notification.read = true; notification.readAt = readAt; });
   updateNotifBadge();
   renderNotificationsSection();
+
+  const { error } = await markAllMyAdminNotificationsRead();
+  if (error) {
+    unread.forEach(notification => { notification.read = false; notification.readAt = null; });
+    notifError = error.message || 'Failed to mark notifications as read.';
+    updateNotifBadge();
+    renderNotificationsSection();
+  }
 }
 
-/** Clear all notifications */
-function clearAllNotifications() {
-  // Also clear persistence for bootstrap notifications
-  const readKeys = JSON.parse(localStorage.getItem(NOTIF_READ_KEY) || '[]');
-  const dismissedKeys = JSON.parse(localStorage.getItem(NOTIF_DISMISSED_KEY) || '[]');
+async function clearAllNotifications() {
+  if (!notificationsStore.length || typeof deleteAllMyAdminNotifications !== 'function') return;
+  if (!window.confirm('Permanently delete all notifications? This action cannot be undone.')) return;
 
-  notificationsStore.forEach(n => {
-    if (n.key) {
-      if (!dismissedKeys.includes(n.key)) dismissedKeys.push(n.key);
-    }
-  });
-
-  localStorage.setItem(NOTIF_DISMISSED_KEY, JSON.stringify(dismissedKeys));
+  const { error } = await deleteAllMyAdminNotifications();
+  if (error) {
+    notifError = error.message || 'Failed to clear notifications.';
+    renderNotificationsSection();
+    return;
+  }
 
   notificationsStore = [];
-  notifNextId = 1;
+  notifError = '';
   updateNotifBadge();
   renderNotificationsSection();
 }
 
-/** Mark a single notification as read */
-function markNotifRead(id) {
-  const n = notificationsStore.find(x => x.id === id);
-  if (n) {
-    n.read = true;
-    if (n.key) {
-      const readKeys = JSON.parse(localStorage.getItem(NOTIF_READ_KEY) || '[]');
-      if (!readKeys.includes(n.key)) {
-        readKeys.push(n.key);
-        localStorage.setItem(NOTIF_READ_KEY, JSON.stringify(readKeys));
-      }
-    }
+async function markNotifRead(id) {
+  const notification = notificationsStore.find(item => item.id === Number(id));
+  if (!notification || notification.read || typeof markMyNotificationRead !== 'function') return !notification || notification.read;
+
+  notification.read = true;
+  updateNotifBadge();
+  renderNotificationsSection();
+
+  const { error } = await markMyNotificationRead(notification.id);
+  if (error) {
+    notification.read = false;
+    notifError = error.message || 'Failed to update notification.';
+    updateNotifBadge();
+    renderNotificationsSection();
+    return false;
   }
-  updateNotifBadge();
-  renderNotificationsSection();
+  return true;
 }
 
-/** Dismiss a single notification */
-function dismissNotif(id) {
-  const n = notificationsStore.find(x => x.id === id);
-  if (n && n.key) {
-    const dismissedKeys = JSON.parse(localStorage.getItem(NOTIF_DISMISSED_KEY) || '[]');
-    if (!dismissedKeys.includes(n.key)) {
-      dismissedKeys.push(n.key);
-      localStorage.setItem(NOTIF_DISMISSED_KEY, JSON.stringify(dismissedKeys));
-    }
+function navigateFromAdminNotification(notification) {
+  const recordType = String(notification?.relatedRecordType || '').toLowerCase();
+  const section = recordType === 'blood_inventory'
+    ? 'inventory'
+    : recordType === 'donor'
+      ? 'donors'
+      : recordType === 'blood_drive'
+        ? 'drives'
+        : recordType === 'blood_request'
+          ? 'requests'
+          : null;
+
+  if (!section) return;
+  navigateToSection(section);
+
+  if (notification.relatedRecordId && globalSearchInput) {
+    globalSearchInput.value = String(notification.relatedRecordId);
+    globalSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  notificationsStore = notificationsStore.filter(x => x.id !== id);
+}
+
+async function openAdminNotification(id) {
+  const notification = notificationsStore.find(item => item.id === Number(id));
+  if (!notification) return;
+  const marked = await markNotifRead(notification.id);
+  if (marked) navigateFromAdminNotification(notification);
+}
+
+async function dismissNotif(id) {
+  const notification = notificationsStore.find(item => item.id === Number(id));
+  if (!notification || typeof deleteMyNotification !== 'function') return;
+
+  const { error } = await deleteMyNotification(notification.id);
+  if (error) {
+    notifError = error.message || 'Failed to delete notification.';
+    renderNotificationsSection();
+    return;
+  }
+
+  notificationsStore = notificationsStore.filter(item => item.id !== notification.id);
+  notifError = '';
   updateNotifBadge();
   renderNotificationsSection();
 }
 
-/** Update stats cards in the notifications section */
 function updateNotifStats() {
   const total = notificationsStore.length;
-  const unread = notificationsStore.filter(n => !n.read).length;
-  const critical = notificationsStore.filter(n => n.critical).length;
+  const unread = notificationsStore.filter(notification => !notification.read).length;
+  const critical = notificationsStore.filter(notification => notification.critical).length;
   const read = total - unread;
+  const setText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  };
 
-  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setText('notifStatTotal', formatNumber(total));
   setText('notifStatUnread', formatNumber(unread));
   setText('notifStatCritical', formatNumber(critical));
   setText('notifStatRead', formatNumber(read));
-  setText('notifStatTotalNote', total > 0 ? `${formatNumber(total)} total alert(s)` : 'No notifications yet');
-  setText('notifStatUnreadNote', unread > 0 ? `${formatNumber(unread)} unread notification(s)` : 'All caught up');
-  setText('notifStatCriticalNote', critical > 0 ? `${formatNumber(critical)} critical alert(s)` : 'No critical alerts');
-  setText('notifStatReadNote', read > 0 ? `${formatNumber(read)} notification(s) read` : 'No read notifications');
 }
 
-/** Get filtered list based on active tab */
 function getFilteredNotifications() {
   const query = getSearchQuery();
   let list = notificationsStore;
 
-  if (notifFilter === 'unread') list = list.filter(n => !n.read);
-  else if (notifFilter === 'read') list = list.filter(n => n.read);
-  else if (notifFilter !== 'all') list = list.filter(n => n.type === notifFilter);
+  if (notifFilter === 'unread') list = list.filter(notification => !notification.read);
+  else if (notifFilter === 'read') list = list.filter(notification => notification.read);
+  else if (notifFilter !== 'all') list = list.filter(notification => notification.type === notifFilter);
 
   if (query) {
-    list = list.filter(n =>
-      String(n.title + ' ' + n.body).toLowerCase().includes(query)
+    list = list.filter(notification =>
+      String(`${notification.title} ${notification.body} ${notification.relatedRecordId || ''}`).toLowerCase().includes(query)
     );
   }
   return list;
 }
 
-/** Render the notifications feed */
+function renderNotificationEmptyState(title, message) {
+  return `
+    <div class="notif-empty-state" style="display:flex;">
+      <i class="fa-solid fa-bell-slash"></i>
+      <p>${escapeHtml(title)}</p>
+      <small>${escapeHtml(message)}</small>
+    </div>`;
+}
+
 function renderNotificationsSection() {
   updateNotifStats();
-
   const feed = document.getElementById('notifFeed');
-  const empty = document.getElementById('notifEmptyState');
   if (!feed) return;
 
-  const list = getFilteredNotifications();
+  const markAllButton = document.getElementById('notifMarkAllReadBtn');
+  const clearAllButton = document.getElementById('notifClearAllBtn');
+  if (markAllButton) markAllButton.disabled = notifLoading || !notificationsStore.some(item => !item.read);
+  if (clearAllButton) clearAllButton.disabled = notifLoading || notificationsStore.length === 0;
 
-  if (!list.length) {
-    feed.innerHTML = '';
-    if (empty) {
-      empty.style.display = 'flex';
-      feed.appendChild(empty);
-    }
+  if (notifLoading) {
+    feed.innerHTML = renderNotificationEmptyState('Loading notifications...', 'Retrieving the latest administrator alerts.');
     return;
   }
-  if (empty) empty.style.display = 'none';
+  if (notifError) {
+    feed.innerHTML = renderNotificationEmptyState('Unable to load notifications', notifError);
+    return;
+  }
 
-  feed.innerHTML = list.map(n => {
-    const meta = NOTIF_ICONS[n.type] || NOTIF_ICONS.system;
-    const time = formatRelativeTime(n.timestamp);
-    const unreadClass = n.read ? '' : 'notif-item--unread';
-    const critClass = n.critical ? 'notif-item--critical' : '';
+  const list = getFilteredNotifications();
+  if (!list.length) {
+    const isFiltered = notifFilter !== 'all' || Boolean(getSearchQuery());
+    feed.innerHTML = renderNotificationEmptyState(
+      isFiltered ? 'No matching notifications' : 'No notifications yet',
+      isFiltered ? 'Try another filter or search term.' : 'Real-time alerts will appear here as events occur.'
+    );
+    return;
+  }
+
+  feed.innerHTML = list.map(notification => {
+    const meta = NOTIF_ICONS[notification.critical ? 'critical' : notification.type] || NOTIF_ICONS.system;
+    const unreadClass = notification.read ? '' : 'notif-item--unread';
+    const criticalClass = notification.critical ? 'notif-item--critical' : '';
+    const categoryLabel = notification.type === 'request'
+      ? 'Blood Request'
+      : notification.type === 'donor'
+        ? 'Donor Activity'
+        : notification.type.charAt(0).toUpperCase() + notification.type.slice(1);
 
     return `
-        <div class="notif-item ${unreadClass} ${critClass}" id="notif-${n.id}" onclick="markNotifRead(${n.id})">
-          <div class="notif-icon-wrap ${meta.cls}">
-            <i class="fa-solid ${meta.icon}"></i>
-            ${!n.read ? '<span class="notif-unread-dot"></span>' : ''}
+      <div class="notif-item ${unreadClass} ${criticalClass}" id="notif-${notification.id}"
+        role="button" tabindex="0"
+        onclick="openAdminNotification(${notification.id})"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openAdminNotification(${notification.id});}">
+        <div class="notif-icon-wrap ${meta.cls}">
+          <i class="fa-solid ${meta.icon}"></i>
+          ${notification.read ? '' : '<span class="notif-unread-dot"></span>'}
+        </div>
+        <div class="notif-body">
+          <strong class="notif-title">${escapeHtml(notification.title)}</strong>
+          <span class="notif-desc">${escapeHtml(notification.body)}</span>
+          <div class="notif-meta">
+            <small class="notif-time"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatRelativeTime(notification.timestamp))}</small>
+            <span class="notif-type-tag ${meta.cls}-tag">${escapeHtml(categoryLabel)}</span>
+            ${notification.critical ? '<span class="notif-type-tag notif-critical-tag"><i class="fa-solid fa-bolt"></i> Critical</span>' : ''}
           </div>
-          <div class="notif-body">
-            <strong class="notif-title">${escapeHtml(n.title)}</strong>
-            <span class="notif-desc">${escapeHtml(n.body)}</span>
-            <div class="notif-meta">
-              <small class="notif-time"><i class="fa-regular fa-clock"></i> ${escapeHtml(time)}</small>
-              ${n.type !== 'system' ? `<span class="notif-type-tag ${meta.cls}-tag">${n.type.charAt(0).toUpperCase() + n.type.slice(1)}</span>` : ''}
-              ${n.critical ? '<span class="notif-type-tag notif-critical-tag"><i class="fa-solid fa-bolt"></i> Critical</span>' : ''}
-            </div>
-          </div>
-          <button class="notif-dismiss-btn" onclick="event.stopPropagation(); dismissNotif(${n.id})" title="Dismiss">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>`;
+        </div>
+        <button class="notif-dismiss-btn" onclick="event.stopPropagation();dismissNotif(${notification.id})"
+          title="Delete notification" aria-label="Delete notification">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>`;
   }).join('');
 }
 
-/** Setup filter tab buttons in notifications section */
 function setupNotifFilters() {
-  document.querySelectorAll('[data-notif-filter]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      notifFilter = btn.dataset.notifFilter || 'all';
-      document.querySelectorAll('[data-notif-filter]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+  document.querySelectorAll('[data-notif-filter]').forEach(button => {
+    button.addEventListener('click', () => {
+      notifFilter = button.dataset.notifFilter || 'all';
+      document.querySelectorAll('[data-notif-filter]').forEach(item => item.classList.toggle('active', item === button));
       renderNotificationsSection();
     });
   });
 }
 
-/** Scan existing cache for notifications (on page load) */
-function generateBootstrapNotifications() {
-  // Only pending requests require coordinator notification.
-  overviewRequestsCache.filter(isPendingRequest).forEach(r => {
-    const patient = Array.isArray(r.patient) ? r.patient[0] : r.patient;
-    const name = formatCompleteName(patient, 'Unknown');
-    const isCrit = isUrgentRequest(r);
-    pushNotification({
-      key: `req_new_${r.request_id || r.id}`,
-      type: 'request',
-      title: 'New Blood Request Pending',
-      body: `Patient ${escapeHtml(name)} needs ${formatRequestRequirement(r)} - awaiting coordinator action.`,
-      critical: isCrit
-    });
-  });
-
-  // Recent registrations remain the only donor notifications.
-  const recentDonors = donorCache.slice(0, 3);
-  recentDonors.forEach(d => {
-    pushNotification({
-      key: `donor_reg_${d.id}`,
-      type: 'donor',
-      title: `New Donor Registered`,
-      body: `${escapeHtml(formatCompleteName(d, 'A donor'))} registered as a ${d.blood_type || '?'} donor.`,
-      critical: false
-    });
-  });
+function animateNotificationBell() {
+  const bellButton = document.getElementById('notifBellBtn');
+  if (!bellButton) return;
+  bellButton.classList.remove('bell-shake');
+  void bellButton.offsetWidth;
+  bellButton.classList.add('bell-shake');
+  setTimeout(() => bellButton.classList.remove('bell-shake'), 700);
 }
 
-/** Start Supabase realtime channel for live notifications */
-function initNotificationsRealtime() {
+async function initNotificationsRealtime() {
   if (typeof supabaseClient === 'undefined') return;
 
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (user?.id && typeof subscribeToNotifications === 'function') {
+    notifOwnSubscription = subscribeToNotifications(user.id, payload => {
+      const changedNotification = payload?.new || payload?.old || {};
+      if (changedNotification.audience && changedNotification.audience !== 'admin') return;
+      if (payload?.eventType === 'INSERT') animateNotificationBell();
+      loadAdminNotifications({ silent: true });
+    });
+  }
+
   notifRealtimeChannel = supabaseClient
-    .channel('admin-notifications-live')
-
-    // ---- NEW DONOR ----
-    .on('postgres_changes', { event: 'INSERT', schema: 'blood_bank', table: 'donor' }, payload => {
-      const d = payload.new || {};
-      pushNotification({
-        key: `donor_reg_${d.donor_id || d.id}`,
-        type: 'donor',
-        title: 'New Donor Registered',
-        body: `${escapeHtml(formatCompleteName(d, 'A donor'))} joined as a ${d.blood_type || '?'} donor.`,
-        critical: false
-      });
-      // Refresh donor cache in background
+    .channel(`admin-data-live-${Date.now()}`)
+    .on('postgres_changes', { event: '*', schema: 'blood_bank', table: 'donor' }, () => {
       loadDonors();
       refreshOverviewStats();
     })
-
-    // ---- DONOR STATUS CHANGED ----
-    .on('postgres_changes', { event: 'UPDATE', schema: 'blood_bank', table: 'donor' }, payload => {
-      // Keep dashboard data current without creating an admin notification.
-      loadDonors();
-      refreshOverviewStats();
-    })
-
-    // ---- NEW BLOOD REQUEST ----
-    .on('postgres_changes', { event: 'INSERT', schema: 'blood_bank', table: 'blood_request' }, payload => {
-      const r = payload.new || {};
-      notifyNewBloodRequest(r);
+    .on('postgres_changes', { event: '*', schema: 'blood_bank', table: 'blood_request' }, () => {
       refreshRequestsSection();
       refreshOverviewStats();
     })
-
-    // ---- REQUEST STATUS CHANGED ----
-    .on('postgres_changes', { event: 'UPDATE', schema: 'blood_bank', table: 'blood_request' }, payload => {
-      const current = payload.new || {};
-      const previous = payload.old || {};
-      if (['emergency_donor', 'replacement'].includes(current.request_type)
-          && current.recipient_received_at
-          && !previous.recipient_received_at) {
-        pushNotification({
-          key: `request_received_${current.request_id || current.id}`,
-          type: 'request',
-          title: 'Blood received confirmed',
-          body: current.request_type === 'replacement'
-            ? `The requester confirmed blood receipt for replacement request #${current.request_id || current.id}. Replacement donations still require facility verification.`
-            : `The requester marked emergency request #${current.request_id || current.id} as fulfilled. Verify any individual donation before adding donor history.`,
-          critical: false
-        });
-      }
+    .on('postgres_changes', { event: '*', schema: 'blood_bank', table: 'donor_pledge' }, () => {
       refreshRequestsSection();
       refreshOverviewStats();
     })
-
-    // ---- EMERGENCY PLEDGE AVAILABILITY CHANGED ----
-    .on('postgres_changes', { event: 'UPDATE', schema: 'blood_bank', table: 'donor_pledge' }, payload => {
-      const pledge = payload.new || {};
-      if (pledge.status === 'unable_to_donate') {
-        pushNotification({
-          key: `pledge_unavailable_${pledge.pledge_id}`,
-          type: 'request',
-          title: 'Donor pledge released',
-          body: `A donor became unable to complete a pledge for request #${pledge.request_id}. The active pledge count was updated and the request remains open if help is still needed.`,
-          critical: false
-        });
-      }
-      refreshRequestsSection();
-      refreshOverviewStats();
-    })
-
-    // ---- INVENTORY CHANGE ----
-    .on('postgres_changes', { event: '*', schema: 'blood_bank', table: 'blood_inventory' }, payload => {
-      // Inventory remains live in the dashboard; it no longer produces admin notifications.
+    .on('postgres_changes', { event: '*', schema: 'blood_bank', table: 'blood_inventory' }, () => {
       refreshInventorySection();
       refreshOverviewInventoryPanel();
       refreshOverviewExpirationsTable();
       refreshOverviewStats();
     })
-
-    .subscribe((status, error) => {
-      if (status === 'SUBSCRIBED') {
-        console.info('Admin notification realtime subscribed.');
-        return;
-      }
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-        console.warn('Admin notification realtime issue:', status, error || '');
-      }
-    });
+    .subscribe();
 }
 
-/** Initialize notification system on page load */
-function initNotifications() {
+async function initNotifications() {
   setupNotifFilters();
-  // Bootstrap notifications after data has loaded (slight delay)
-  setTimeout(() => {
-    generateBootstrapNotifications();
-  }, 2500);
-  initNotificationsRealtime();
-  startRequestNotificationPolling();
+  await loadAdminNotifications();
+  await initNotificationsRealtime();
 }
 
+window.markAllNotificationsRead = markAllNotificationsRead;
+window.clearAllNotifications = clearAllNotifications;
+window.openAdminNotification = openAdminNotification;
+window.dismissNotif = dismissNotif;
 
-// Call init after existing initialization
 window.addEventListener('DOMContentLoaded', () => {
-  // Small delay to let other data load first
   setTimeout(initNotifications, 500);
 });
 
-
-// Cleanup on unload
 window.addEventListener('beforeunload', () => {
+  if (notifOwnSubscription) notifOwnSubscription.unsubscribe();
   if (notifRealtimeChannel && typeof supabaseClient !== 'undefined') {
     try { supabaseClient.removeChannel(notifRealtimeChannel); } catch (_) { }
-  }
-  if (notifRequestPollTimer) {
-    clearInterval(notifRequestPollTimer);
   }
   if (bloodDrivesRealtimeChannel && typeof supabaseClient !== 'undefined') {
     try { supabaseClient.removeChannel(bloodDrivesRealtimeChannel); } catch (_) { }
   }
 });
 
-// Auto-refresh when landing, returning via bfcache, or switching back to the tab
 if (typeof attachPageRefreshListeners === 'function') {
   attachPageRefreshListeners({
     onRefresh: async () => {
       try {
         await Promise.allSettled([
+          loadAdminNotifications({ silent: true }),
           typeof refreshOverviewStats === 'function' ? refreshOverviewStats() : Promise.resolve(),
           typeof refreshOverviewPanels === 'function' ? refreshOverviewPanels() : Promise.resolve(),
           typeof loadRequests === 'function' ? loadRequests() : Promise.resolve(),

@@ -8,9 +8,9 @@
   <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
   <title>Coordinator Dashboard - BloodConnect</title>
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/admin_dashboard.css?v=20260916donorval" />
+  <link rel="stylesheet" href="/admin_dashboard.css?v=20260923donordirectory" />
   <link rel="stylesheet" href="/styles/components/admin-request-details.css?v=20260913verification" />
-  <link rel="stylesheet" href="/styles/components/admin-donor-filters.css?v=20260912a" />
+  <link rel="stylesheet" href="/styles/components/admin-donor-filters.css?v=20260923donordirectory" />
   <link rel="stylesheet" href="/styles/components/shared-selects.css?v=20260912a" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
@@ -291,8 +291,8 @@
             Donor</button>
         </div>
 
-        <div class="panel full-width" id="donorPanel">
-          <div class="panel-header">
+        <section class="donor-directory full-width" id="donorPanel">
+          <div class="donor-directory-header">
             <h3><i class="fa-solid fa-users"></i> All Donors</h3>
             <div class="panel-actions donor-filters">
               <label>Status
@@ -322,30 +322,27 @@
             </div>
           </div>
           <p id="donorFilterSummary" class="donor-filter-summary" role="status" aria-live="polite"></p>
-          <div class="table-wrap">
+          <div class="table-wrap donor-table-wrap">
             <table class="data-table" id="donorTable">
               <thead>
                 <tr>
                   <th>Donor</th>
                   <th>Blood Type</th>
-                  <th>Phone</th>
+                  <th>Contact</th>
                   <th>Status</th>
                   <th>Map</th>
-                  <th>Last Donated</th>
-                  <th title="Based on the recorded donation date; medical screening is still required.">Donation
-                    Interval</th>
-                  <th>Registered</th>
+                  <th title="Last recorded donation and the next eligible donation interval.">Donation</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody id="donorTableBody">
                 <tr>
-                  <td colspan="9" style="text-align:center;color:var(--slate-400);padding:32px;">Loading donors...</td>
+                  <td colspan="7" style="text-align:center;color:var(--slate-400);padding:32px;">Loading donors...</td>
                 </tr>
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
 
       </div>
       <!-- end section-donors -->
@@ -717,6 +714,9 @@
             <div class="panel-actions" id="notifFilterBtns">
               <button type="button" class="panel-btn active" data-notif-filter="all">All</button>
               <button type="button" class="panel-btn" data-notif-filter="unread">Unread</button>
+              <button type="button" class="panel-btn" data-notif-filter="request">Blood Requests</button>
+              <button type="button" class="panel-btn" data-notif-filter="inventory">Inventory</button>
+              <button type="button" class="panel-btn" data-notif-filter="donor">Donor Activity</button>
               <button type="button" class="panel-btn" data-notif-filter="read">Read</button>
             </div>
           </div>
@@ -724,8 +724,8 @@
             <div class="notif-feed" id="notifFeed">
               <div class="notif-empty-state" id="notifEmptyState">
                 <i class="fa-solid fa-bell-slash"></i>
-                <p>No notifications yet</p>
-                <small>Real-time alerts will appear here as events occur.</small>
+                <p id="notifEmptyTitle">No notifications yet</p>
+                <small id="notifEmptyMessage">Real-time alerts will appear here as events occur.</small>
               </div>
             </div>
           </div>
@@ -1041,12 +1041,12 @@
                   <option value="verified">Verified</option>
                   <option value="missing" disabled hidden>Location missing</option>
                 </select>
-                <small id="locationVerificationHelp">Confirm the area before verifying. Map visibility is controlled
-                  separately.</small>
+                <small id="locationVerificationHelp">Recognized Bohol municipalities are verified automatically.
+                  Map visibility is controlled separately.</small>
               </div>
               <div class="form-group">
-                <label for="profileMapArea">Map Area</label>
-                <input type="text" id="profileMapArea" placeholder="e.g. Tagbilaran City" />
+                <label for="profileMapArea">Map Area (Municipality/City)</label>
+                <input type="text" id="profileMapArea" placeholder="e.g. Tagbilaran City" autocomplete="off" />
               </div>
             </div>
             <button type="button" class="btn-map-settings" id="btnSaveMapSettings" onclick="handleSaveMapSettings()">
@@ -1738,8 +1738,8 @@
   <!-- ==================== JS ==================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="/supabase-client.js?v=20260922authflow"></script>
-  <script src="/scripts/pages/admin-dashboard.js?v=20260922authflow"></script>
+  <script src="/supabase-client.js?v=20260923mapverification"></script>
+  <script src="/scripts/pages/admin-dashboard.js?v=20260923mapmunicipality"></script>
 
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>

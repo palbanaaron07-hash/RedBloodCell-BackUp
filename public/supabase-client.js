@@ -1489,7 +1489,9 @@ async function listDonors() {
         donor_status: row.donor_status || 'registered',
         show_on_map: row.show_on_map === true,
         location_status: row.location_status || 'needs_review',
-        map_area: row.map_area || row.address || null,
+        // Keep the full private address separate from the public map area.
+        // The municipality is derived only when map settings are reviewed.
+        map_area: row.map_area || null,
         area: row.map_area || null,
         last_donation_date: row.last_donation_date,
         created_at: row.created_at,
@@ -1513,6 +1515,53 @@ function getDonorMapVisibilityState(donor) {
   if (!String(donor?.map_area || donor?.area || '').trim()) return { visible: false, reason: 'Location missing.' };
   if (donor?.location_status !== 'verified') return { visible: false, reason: 'Awaiting location verification.' };
   return { visible: true, reason: 'Your approximate area can appear on the donor map.' };
+}
+
+const BOHOL_MAP_AREAS = [
+  'Tagbilaran City', 'Alburquerque', 'Alicia', 'Anda', 'Antequera', 'Baclayon',
+  'Balilihan', 'Batuan', 'Bien Unido', 'Bilar', 'Buenavista', 'Calape', 'Candijay',
+  'Carmen', 'Catigbian', 'Clarin', 'Corella', 'Cortes', 'Dagohoy', 'Danao', 'Dauis',
+  'Dimiao', 'Duero', 'Garcia Hernandez', 'Getafe', 'Guindulman', 'Inabanga', 'Jagna',
+  'Lila', 'Loay', 'Loboc', 'Loon', 'Mabini', 'Maribojoc', 'Panglao', 'Pilar',
+  'Pres. Carlos P. Garcia', 'Sagbayan', 'San Isidro', 'San Miguel', 'Sevilla',
+  'Sierra Bullones', 'Sikatuna', 'Talibon', 'Trinidad', 'Tubigon', 'Ubay', 'Valencia'
+];
+
+function normalizeBoholMapArea(value) {
+  const input = String(value || '').trim().toLowerCase();
+  if (!input) return null;
+
+  const exactArea = BOHOL_MAP_AREAS.find((area) => {
+    const normalizedArea = area.toLowerCase();
+    return input === normalizedArea
+      || input === normalizedArea.replace(/\bcity\b/g, '').trim();
+  });
+  if (exactArea) return exactArea;
+
+  // A longer address must name Bohol explicitly. This prevents similarly
+  // named municipalities in another province from being placed on this map.
+  if (!/\bbohol\b/i.test(input)) return null;
+
+  const aliases = [
+    ['tagbilaran', 'Tagbilaran City'],
+    ['jetafe', 'Getafe'],
+    ['getafe', 'Getafe'],
+    ['pitogo', 'Pres. Carlos P. Garcia'],
+    ['carlos p. garcia', 'Pres. Carlos P. Garcia'],
+    ['carlos p garcia', 'Pres. Carlos P. Garcia'],
+    ['c.p.g', 'Pres. Carlos P. Garcia'],
+    ['cpg', 'Pres. Carlos P. Garcia']
+  ];
+  const alias = aliases.find(([candidate]) => input.includes(candidate));
+  if (alias) return alias[1];
+
+  const sortedAreas = [...BOHOL_MAP_AREAS].sort((a, b) => b.length - a.length);
+  for (const area of sortedAreas) {
+    const comparable = area.toLowerCase().replace(/\bcity\b/g, '').trim();
+    const escaped = comparable.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`, 'i').test(input)) return area;
+  }
+  return null;
 }
 
 async function listVisibleDonors() {
@@ -1602,10 +1651,12 @@ async function updateDonorMapSettings(donorId, payload) {
     return { data: null, error: { message: 'Invalid location status.' } };
   }
 
+  const requestedMapArea = String(payload?.map_area || '').trim();
+  const recognizedMapArea = normalizeBoholMapArea(requestedMapArea);
   const updates = {
     show_on_map: Boolean(payload?.show_on_map),
     location_status: status,
-    map_area: String(payload?.map_area || '').trim() || null
+    map_area: recognizedMapArea || requestedMapArea || null
   };
 
   try {
@@ -1615,10 +1666,12 @@ async function updateDonorMapSettings(donorId, payload) {
       .eq('donor_id', id)
       .single();
     if (readError) return { data: null, error: readError };
-    // Location quality and map visibility are independent. A changed area
-    // must be saved for review before it can be verified on a subsequent save.
+    // Recognized Bohol municipalities can be verified automatically. Missing
+    // or unknown locations retain the existing manual-review safety path.
     if (!updates.map_area) {
       updates.location_status = 'missing';
+    } else if (recognizedMapArea) {
+      updates.location_status = 'verified';
     } else if (updates.map_area !== String(current.map_area || '').trim()) {
       updates.location_status = 'needs_review';
     } else if (updates.location_status === 'missing') {
@@ -1664,7 +1717,7 @@ async function setMyDonorMapVisibility(showOnMap) {
 
     const { data: donor, error: fetchErr } = await bloodBank()
       .from('donor')
-      .select('donor_id, show_on_map, location_status, map_area')
+      .select('donor_id, show_on_map, location_status, map_area, address')
       .eq('auth_user_id', user.id)
       .maybeSingle();
 
@@ -1672,12 +1725,20 @@ async function setMyDonorMapVisibility(showOnMap) {
       return { data: null, error: mapError(fetchErr, 'Donor profile not found.') };
     }
 
+    const currentMapArea = String(donor.map_area || '').trim();
+    const recognizedMapArea = normalizeBoholMapArea(currentMapArea || donor.address);
+    const resolvedMapArea = recognizedMapArea || currentMapArea || null;
+
     const { data, error } = await bloodBank()
       .from('donor')
       .update({
         show_on_map: Boolean(showOnMap),
-        location_status: !String(donor.map_area || '').trim() ? 'missing'
-          : donor.location_status === 'verified' ? 'verified' : 'needs_review'
+        map_area: resolvedMapArea,
+        location_status: recognizedMapArea
+          ? 'verified'
+          : !resolvedMapArea
+            ? 'missing'
+            : donor.location_status === 'verified' ? 'verified' : 'needs_review'
       })
       .eq('donor_id', donor.donor_id)
       .select('donor_id, show_on_map, location_status, map_area')
@@ -2271,19 +2332,15 @@ async function createBloodRequest(payload) {
     };
   }
 
-  const requestType = ['replacement', 'emergency_donor'].includes(payload.request_type)
-    ? payload.request_type
-    : 'emergency_donor';
-  const isReplacementRequest = requestType === 'replacement';
-  const requestedBloodType = normalizeBloodType(
-    isReplacementRequest
-      ? (patientResult.profile.blood_type_needed || patientResult.profile.blood_type || user.user_metadata?.blood_type || 'O+')
-      : payload.blood_type
-  );
+  // Requesters submit one unified blood request. The legacy value remains in
+  // storage so existing verification, donor matching, and lifecycle rules keep
+  // working without rewriting historical replacement requests.
+  const requestType = 'emergency_donor';
+  const requestedBloodType = normalizeBloodType(payload.blood_type);
   if (!requestedBloodType) {
     return {
       data: null,
-      error: { message: isReplacementRequest ? 'Your recipient profile needs a valid blood type record.' : 'Blood type is required for emergency donor matching.' }
+      error: { message: 'Blood type is required for matching.' }
     };
   }
   if (!isValidBloodType(requestedBloodType)) {
@@ -2317,7 +2374,7 @@ async function createBloodRequest(payload) {
     patient_id: effectivePatientId,
     blood_type_needed: requestedBloodType,
     quantity: Number(payload.quantity || payload.units_needed) || 1,
-    urgency_level: isReplacementRequest ? 'normal' : (payload.urgency_level || payload.urgency || 'normal'),
+    urgency_level: payload.urgency_level || payload.urgency || 'normal',
     status: payload.status || 'pending',
     note: requestNote,
     request_type: requestType,
@@ -2836,16 +2893,33 @@ async function listMyNotifications(limit = 20) {
 
   const { data, error } = await bloodBank()
     .from('notifications')
-    .select('notification_id, request_id, drive_id, notification_type, title, message, read_at, created_at')
+    .select('notification_id, request_id, drive_id, related_record_type, related_record_id, notification_type, title, message, read_at, created_at')
     .eq('recipient_user_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(Math.max(1, Math.min(Number(limit) || 20, 50)));
+    .limit(Math.max(1, Math.min(Number(limit) || 20, 150)));
 
   return error
     ? { data: null, error: mapError(error, 'Failed to load notifications.') }
     : { data: data || [], error: null };
 }
 
+async function listMyAdminNotifications(limit = 150) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return { data: null, error: { message: 'Not authenticated' } };
+
+  const { data, error } = await bloodBank()
+    .from('notifications')
+    .select('notification_id, request_id, drive_id, related_record_type, related_record_id, notification_type, title, message, read_at, created_at')
+    .eq('recipient_user_id', user.id)
+    .eq('audience', 'admin')
+    .order('created_at', { ascending: false })
+    .limit(Math.max(1, Math.min(Number(limit) || 150, 150)));
+
+  return error
+    ? { data: null, error: mapError(error, 'Failed to load administrator notifications.') }
+    : { data: data || [], error: null };
+}
 async function listBloodDrives() {
   if (!SUPABASE_CONFIGURED) return configError();
   try {
@@ -3024,6 +3098,58 @@ async function setMyNotificationReadState(notificationId, isRead) {
     ? { data: null, error: mapError(error, 'Failed to update notification.') }
     : { data, error: null };
 }
+
+async function markAllMyAdminNotificationsRead() {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return { data: null, error: { message: 'Not authenticated' } };
+
+  const { data, error } = await bloodBank()
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('recipient_user_id', user.id)
+    .eq('audience', 'admin')
+    .is('read_at', null)
+    .select('notification_id, read_at');
+
+  return error
+    ? { data: null, error: mapError(error, 'Failed to mark notifications as read.') }
+    : { data: data || [], error: null };
+}
+
+async function deleteMyNotification(notificationId) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const id = Number(notificationId);
+  if (!Number.isInteger(id) || id <= 0) return { data: null, error: { message: 'Invalid notification.' } };
+
+  const { data, error } = await bloodBank()
+    .from('notifications')
+    .delete()
+    .eq('notification_id', id)
+    .select('notification_id')
+    .maybeSingle();
+
+  return error
+    ? { data: null, error: mapError(error, 'Failed to delete notification.') }
+    : { data, error: null };
+}
+
+async function deleteAllMyAdminNotifications() {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return { data: null, error: { message: 'Not authenticated' } };
+
+  const { data, error } = await bloodBank()
+    .from('notifications')
+    .delete()
+    .eq('recipient_user_id', user.id)
+    .eq('audience', 'admin')
+    .select('notification_id');
+
+  return error
+    ? { data: null, error: mapError(error, 'Failed to clear notifications.') }
+    : { data: data || [], error: null };
+}
 function subscribeToNotifications(userId, onChange) {
   if (!SUPABASE_CONFIGURED || !userId) {
     return { unsubscribe() { } };
@@ -3037,7 +3163,8 @@ function subscribeToNotifications(userId, onChange) {
       {
         event: '*',
         schema: 'blood_bank',
-        table: 'notifications'
+        table: 'notifications',
+        filter: `recipient_user_id=eq.${userId}`
       },
       (payload) => {
         if (typeof onChange === 'function') onChange(payload);
@@ -3275,6 +3402,51 @@ async function updateInventoryStock(payload) {
   }
 }
 
+function isPendingUrgentRequestRecord(row) {
+  const requestType = String(row?.request_type || '').trim().toLowerCase();
+  const urgency = String(row?.urgency_level || '').trim().toLowerCase();
+  const status = String(row?.status || '').trim().toLowerCase();
+  const communityStatus = String(row?.community_status || '').trim().toLowerCase();
+  const expiresAt = row?.expires_at ? new Date(row.expires_at) : null;
+  const nonPendingStatuses = [
+    'approved', 'processing', 'in progress', 'in_progress',
+    'needs clarification', 'needs_clarification', 'clarification',
+    'cancelled', 'canceled', 'expired', 'rejected', 'declined',
+    'fulfilled', 'complete', 'completed', 'done', 'closed'
+  ];
+  const isUrgent = urgency.includes('urgent') || urgency.includes('emergency') || urgency.includes('critical');
+  const isExpired = communityStatus === 'expired'
+    || (expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= Date.now());
+
+  return requestType !== 'replacement'
+    && isUrgent
+    && !nonPendingStatuses.includes(status)
+    && !['fulfilled', 'expired'].includes(communityStatus)
+    && !isExpired;
+}
+
+async function getPendingUrgentRequestCount() {
+  if (!SUPABASE_CONFIGURED) return configError();
+
+  try {
+    const { data, error } = await bloodBank()
+      .from('blood_request')
+      .select('request_id, request_type, urgency_level, status, community_status, expires_at')
+      .or('urgency_level.ilike.%urgent%,urgency_level.ilike.%emergency%,urgency_level.ilike.%critical%')
+      .limit(10000);
+
+    if (error) {
+      return { data: null, error: mapError(error, 'Failed to load pending urgent requests.') };
+    }
+
+    return {
+      data: (data || []).filter(isPendingUrgentRequestRecord).length,
+      error: null
+    };
+  } catch (_) {
+    return { data: null, error: { message: 'Network error while loading pending urgent requests.' } };
+  }
+}
 async function getOverviewRecentRequests(limit = 100) {
   if (!SUPABASE_CONFIGURED) return configError();
 

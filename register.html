@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
   <title>Register - BloodConnect</title>
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/register.css?v=20260916fix" />
+  <link rel="stylesheet" href="/register.css?v=20260923bohol" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 
@@ -170,30 +170,26 @@
                 <div class="section-icon" aria-hidden="true"><i class="fa-solid fa-location-dot"></i></div>
                 <div>
                   <h3 id="address-details-heading">Home address</h3>
-                  <p>Enter the location from broadest to most specific.</p>
+                  <p>Enter your Bohol municipality and barangay.</p>
                 </div>
               </div>
 
               <div class="form-grid address-grid">
                 <div class="form-group location-field">
                   <label for="province">Province <span class="req">*</span></label>
-                  <div class="input-wrapper location-combobox">
+                  <div class="input-wrapper location-locked">
                     <i class="fa-solid fa-map-location-dot input-icon"></i>
-                    <input type="text" id="province" name="province" placeholder="Select or type a province"
-                      autocomplete="address-level1" role="combobox" aria-autocomplete="list" aria-expanded="false"
-                      aria-controls="provinceOptions" aria-describedby="provinceHelp" required />
-                    <button type="button" class="location-picker-toggle" aria-label="Show province suggestions" tabindex="-1">
-                      <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
-                    </button>
-                    <div id="provinceOptions" class="location-suggestions" role="listbox" data-title="Select a province" hidden></div>
+                    <input type="text" id="province" name="province" value="Bohol"
+                      autocomplete="address-level1" aria-describedby="provinceHelp" readonly required />
+                    <i class="fa-solid fa-lock location-lock-icon" aria-hidden="true"></i>
                   </div>
-                  <small id="provinceHelp" class="location-help" aria-live="polite">Loading province suggestions...</small>
+                  <small id="provinceHelp" class="location-help">BloodConnect currently serves Bohol.</small>
                 </div>
                 <div class="form-group location-field">
                   <label for="city">City / Municipality <span class="req">*</span></label>
                   <div class="input-wrapper location-combobox">
                     <i class="fa-solid fa-city input-icon"></i>
-                    <input type="text" id="city" name="city" placeholder="Select a province first"
+                    <input type="text" id="city" name="city" placeholder="Loading Bohol municipalities..."
                       autocomplete="address-level2" role="combobox" aria-autocomplete="list" aria-expanded="false"
                       aria-controls="cityOptions" aria-describedby="cityHelp" required />
                     <button type="button" class="location-picker-toggle" aria-label="Show city or municipality suggestions" tabindex="-1">
@@ -201,7 +197,7 @@
                     </button>
                     <div id="cityOptions" class="location-suggestions" role="listbox" data-title="Select a city or municipality" hidden></div>
                   </div>
-                  <small id="cityHelp" class="location-help" aria-live="polite">Suggestions appear after selecting a province.</small>
+                  <small id="cityHelp" class="location-help" aria-live="polite">Loading Bohol municipality suggestions...</small>
                 </div>
                 <div class="form-group location-field">
                   <label for="address">Barangay <span class="req">*</span></label>
@@ -355,7 +351,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/supabase-client.js?v=20260922authflow"></script>
-  <script src="/scripts/pages/register.js?v=20260901e"></script>
+  <script src="/scripts/pages/register.js?v=20260923bohol"></script>
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>
 

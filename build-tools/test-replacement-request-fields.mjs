@@ -8,22 +8,18 @@ const admin = fs.readFileSync(new URL('../public/scripts/pages/admin-dashboard.j
 const migration = fs.readFileSync(new URL('../supabase/migrations/202609140001_replacement_any_blood_type.sql', import.meta.url), 'utf8');
 
 for (const control of [
-  'id="requestBloodTypeGroup"',
-  'id="requestUrgencyGroup"',
-  'id="replacementRequirementsNote"',
   'id="editReqType"',
   'id="editReqBloodTypeGroup"',
   'id="editReqUrgencyGroup"'
 ]) assert.ok(html.includes(control), `Missing replacement form control: ${control}`);
 
-assert.match(patient, /bloodType\.disabled = isReplacement/);
-assert.match(patient, /urgency\.disabled = isReplacement/);
-assert.match(patient, /bloodType\.required = !isReplacement/);
-assert.match(patient, /urgency\.required = !isReplacement/);
+assert.doesNotMatch(html, /id="requestType"/);
+assert.match(html, /name="request_type" value="emergency_donor"/);
+assert.match(html, /A coordinator will verify the request, check matching blood availability/);
+assert.match(client, /const requestType = 'emergency_donor'/);
+assert.doesNotMatch(patient, /function syncRequestTypeFields/);
 assert.match(patient, /Any eligible blood type/);
 assert.match(patient, /r\.request_type === 'replacement'[\s\S]*normalizeBloodType\(r\.blood_type\)/);
-assert.match(client, /isReplacementRequest \? 'normal'/);
-assert.match(client, /isReplacementRequest[\s\S]*patientResult\.profile\.blood_type_needed/);
 assert.match(admin, /formatRequestRequirement/);
 assert.match(admin, /any eligible blood type/);
 

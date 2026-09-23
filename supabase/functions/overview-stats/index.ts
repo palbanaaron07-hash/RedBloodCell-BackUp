@@ -17,6 +17,28 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
+function isPendingUrgentRequest(row: Record<string, unknown>) {
+  const requestType = String(row?.request_type || '').trim().toLowerCase();
+  const urgency = String(row?.urgency_level || '').trim().toLowerCase();
+  const status = String(row?.status || '').trim().toLowerCase();
+  const communityStatus = String(row?.community_status || '').trim().toLowerCase();
+  const expiresAt = row?.expires_at ? new Date(String(row.expires_at)) : null;
+  const nonPendingStatuses = [
+    'approved', 'processing', 'in progress', 'in_progress',
+    'needs clarification', 'needs_clarification', 'clarification',
+    'cancelled', 'canceled', 'expired', 'rejected', 'declined',
+    'fulfilled', 'complete', 'completed', 'done', 'closed'
+  ];
+  const isUrgent = urgency.includes('urgent') || urgency.includes('emergency') || urgency.includes('critical');
+  const isExpired = communityStatus === 'expired'
+    || (expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= Date.now());
+
+  return requestType !== 'replacement'
+    && isUrgent
+    && !nonPendingStatuses.includes(status)
+    && !['fulfilled', 'expired'].includes(communityStatus)
+    && !isExpired;
+}
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -41,7 +63,7 @@ Deno.serve(async (req) => {
   const monthStartStr = monthStart.toISOString().slice(0, 10);
   const nextMonthStartStr = nextMonthStart.toISOString().slice(0, 10);
 
-  const [donorsRes, pendingReqRes, totalReqRes, inventoryRes, donationsRes] = await Promise.all([
+  const [donorsRes, pendingReqRes, urgentReqRes, totalReqRes, inventoryRes, donationsRes] = await Promise.all([
     adminClient
       .schema('blood_bank')
       .from('donor')
@@ -51,6 +73,11 @@ Deno.serve(async (req) => {
       .from('blood_request')
       .select('*', { count: 'exact', head: true })
       .in('status', ['pending', 'Pending', 'PENDING']),
+    adminClient
+      .schema('blood_bank')
+      .from('blood_request')
+      .select('request_id, request_type, urgency_level, status, community_status, expires_at')
+      .or('urgency_level.ilike.%urgent%,urgency_level.ilike.%emergency%,urgency_level.ilike.%critical%'),
     adminClient
       .schema('blood_bank')
       .from('blood_request')
@@ -104,6 +131,9 @@ Deno.serve(async (req) => {
         donors_count: realDonors.length,
         requests_count: totalReqRes.count || 0,
         pending_requests_count: pendingReqRes.count || 0,
+        pending_urgent_requests: urgentReqRes.error
+          ? null
+          : (urgentReqRes.data || []).filter(isPendingUrgentRequest).length,
         donations_this_month: donationsThisMonth
       }
     },

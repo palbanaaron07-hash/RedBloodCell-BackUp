@@ -23,7 +23,7 @@ assert.match(confirmationMigration, /community_status = 'fulfilled'/);
 assert.match(client, /const timedOut = !isReplacement && expiresAt/);
 assert.match(admin, /const timedOut = !isReplacement && expiresAt/);
 assert.match(patient, /replacement campaign stays active until the required units are confirmed/i);
-assert.match(html, /Emergency assistance:<\/strong> Expires automatically after 72 hours/);
-assert.match(html, /Hospital replacement:<\/strong> Stays active until the required replacement units are confirmed/);
+assert.match(html, /name="request_type" value="emergency_donor"/);
+assert.doesNotMatch(html, /What kind of help is needed/);
 
 console.log('Request-type expiration lifecycle checks passed.');

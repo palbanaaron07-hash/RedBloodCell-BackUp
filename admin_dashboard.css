@@ -3693,6 +3693,11 @@ img {
   color: var(--blood-rich) !important;
 }
 
+#notifFilterBtns {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 /* Notification feed */
 .notif-feed {
   display: flex;

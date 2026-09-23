@@ -640,22 +640,10 @@
           <button type="button" class="modal-close" aria-label="Close request form" onclick="closeRequestModal()">&times;</button>
         </div>
         <form id="requestForm" class="modal-body">
-          <p class="request-form-intro">Tell us what is needed so a coordinator can review your request. <span>Fields marked * are required.</span></p>
+          <input type="hidden" name="request_type" value="emergency_donor" />
+          <p class="request-form-intro">Tell the blood bank what is needed. A coordinator will verify the request, check matching blood availability, and contact eligible donors when additional support is required. <span>Fields marked * are required.</span></p>
           <fieldset class="request-form-section">
-            <legend>1. Request type</legend>
-          <div class="form-group">
-            <label for="requestType">What kind of help is needed? <span class="req">*</span></label>
-            <select name="request_type" id="requestType" aria-describedby="requestTypeHelp" required>
-              <option value="" disabled selected>Select request type</option>
-              <option value="replacement">Hospital Replacement Request</option>
-              <option value="emergency_donor">Emergency Donor Assistance</option>
-            </select>
-            <div id="requestTypeHelp" class="request-type-help"><p><strong>Hospital replacement:</strong> Stays active until the required replacement units are confirmed, or the request is cancelled or closed.</p><p><strong>Emergency assistance:</strong> Expires automatically after 72 hours because urgent patient needs can change quickly.</p></div>
-          </div>
-          </fieldset>
-          <fieldset class="request-form-section">
-            <legend id="requestRequirementsLegend">2. Blood requirements</legend>
-          <p id="replacementRequirementsNote" class="replacement-requirements-note" hidden><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Any eligible blood type may help with replacement. Enter only the number of replacement units requested by the hospital.</p>
+            <legend>1. Blood requirements</legend>
           <div class="form-row" id="requestBloodRequirementsRow">
             <div class="form-group" id="requestBloodTypeGroup">
               <label for="requestBloodType">Blood type <span class="req">*</span></label>
@@ -691,7 +679,7 @@
           </div>
           </fieldset>
           <fieldset class="request-form-section">
-            <legend>3. Hospital &amp; request details</legend>
+            <legend>2. Hospital &amp; request details</legend>
           <div class="form-group">
             <label for="requestHospital">Hospital / donation location <span class="req">*</span></label>
             <input id="requestHospital" type="text" name="hospital" placeholder="Hospital or facility name and city" required />
@@ -708,7 +696,7 @@
           </div>
           </fieldset>
           <fieldset class="request-form-section request-verification-support">
-            <legend>4. Verification support <span class="optional">Optional</span></legend>
+            <legend>3. Verification support <span class="optional">Optional</span></legend>
             <p class="verification-support-intro">These details help the Blood Donation Coordinator verify your request. They are not shown on the community feed.</p>
             <div class="form-group">
               <label for="requestFacilityContact">Facility contact number <span class="optional">Optional</span></label>
@@ -730,7 +718,7 @@
               <small id="requestDocumentHelp">Hospital request, referral, or replacement document. JPG, PNG, or PDF up to 20 MB. Only you and authorized coordinators can view it.</small>
             </div>
           </fieldset>
-          <p class="request-review-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Your request appears in My Requests after saving. It becomes public after coordinator approval.</p>
+          <p class="request-review-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Your request is sent privately to the blood bank for coordinator verification. It is shared with eligible donors only when donor assistance is needed.</p>
           <div id="requestMsg" class="form-msg" role="status" aria-live="polite"></div>
           <div class="modal-footer">
             <button type="button" class="btn-cancel" onclick="closeRequestModal()">Cancel</button>
@@ -1091,9 +1079,9 @@
 
   <!-- ==================== JS ==================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/supabase-client.js?v=20260922authflow"></script>
+  <script src="/supabase-client.js?v=20260923mapverification"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/scripts/pages/account-dashboard.js?v=20260922authflow"></script>
+  <script src="/scripts/pages/account-dashboard.js?v=20260923unifiedrequest"></script>
   <script src="/pull-to-refresh.js?v=20260906n" defer></script>
 </body>
 
