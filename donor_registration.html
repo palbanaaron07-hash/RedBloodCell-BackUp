@@ -41,8 +41,8 @@
             <input id="firstName" name="firstName" type="text" placeholder="Jose" required />
           </div>
           <div class="field-group">
-            <label for="middleName"><i class="fa-solid fa-user"></i> Middle Name</label>
-            <input id="middleName" name="middleName" type="text" autocomplete="additional-name" placeholder="Protasio" />
+            <label for="middleName"><i class="fa-solid fa-user"></i> Middle Name <span class="optional" style="font-size:0.75rem;font-weight:normal;color:#6b7280;">(leave blank if not available)</span></label>
+            <input id="middleName" name="middleName" type="text" autocomplete="additional-name" placeholder="Enter if available, or leave blank" />
           </div>
           <div class="field-group">
             <label for="lastName"><i class="fa-solid fa-user-tag"></i> Last Name</label>
@@ -75,7 +75,7 @@
 
         <div class="grid-two">
           <div class="field-group">
-            <label for="phone"><i class="fa-solid fa-phone"></i> Phone Number</label>
+            <label for="phone"><i class="fa-solid fa-phone"></i> Emergency Contact No.</label>
             <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="numeric"
               pattern="09[0-9]{9}" placeholder="09xxxxxxxxx"
               aria-describedby="phoneFeedback" required />

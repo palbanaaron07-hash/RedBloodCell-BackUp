@@ -96,7 +96,7 @@
       phoneInput.setCustomValidity(isValid ? '' : 'Enter exactly 11 digits and start with 09, like 09171234567.');
 
       if (!isValid && showMessage) {
-        showAlert('Phone number must be exactly 11 digits and start with 09.', 'error');
+        showAlert('Emergency contact number must be exactly 11 digits and start with 09.', 'error');
         phoneInput.reportValidity();
         phoneInput.focus();
       }

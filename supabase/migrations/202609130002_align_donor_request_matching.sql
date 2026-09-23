@@ -16,7 +16,7 @@ as $$
     and br.expires_at > now()
     and lower(coalesce(d.availability_status, '')) = 'available'
     and lower(coalesce(d.donor_status, '')) in ('approved', 'donated')
-    and (d.last_donation_date is null or d.last_donation_date <= current_date - 56)
+    and (d.last_donation_date is null or d.last_donation_date <= current_date - 90)
     and upper(trim(br.blood_type_needed)) = upper(trim(d.blood_type))
     and not exists (
       select 1 from blood_bank.patient p

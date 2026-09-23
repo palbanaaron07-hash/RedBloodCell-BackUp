@@ -22,7 +22,8 @@ assert.match(confirmationMigration, /when total >= target_units then 'complete'/
 assert.match(confirmationMigration, /community_status = 'fulfilled'/);
 assert.match(client, /const timedOut = !isReplacement && expiresAt/);
 assert.match(admin, /const timedOut = !isReplacement && expiresAt/);
-assert.match(patient, /replacement campaign stays active until the required units are confirmed/i);
+const privateCard = patient.slice(patient.indexOf('function renderRequestCard('), patient.indexOf('let pendingBloodReceipt'));
+assert.doesNotMatch(privateCard, /replacement donor|replacement campaign|units confirmed/i);
 assert.match(html, /name="request_type" value="emergency_donor"/);
 assert.doesNotMatch(html, /What kind of help is needed/);
 

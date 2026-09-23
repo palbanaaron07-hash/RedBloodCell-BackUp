@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 
 const patient = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 const card = patient.slice(patient.indexOf('function renderRequestCard('), patient.indexOf('let pendingBloodReceipt'));
-assert.match(card, /const canComplete = hasActivePledge/);
+assert.doesNotMatch(card, /const canComplete = hasActivePledge/);
+assert.doesNotMatch(card, /donors pledged/);
+assert.match(card, /Private request/);
+assert.doesNotMatch(card, /replacement donor|REPLACEMENT DONORS NEEDED|units confirmed/);
 const receipt = patient.slice(patient.indexOf('function markBloodReceived('), patient.indexOf('function closeBloodReceivedDialog'));
 assert.match(receipt, /request\.request_type === 'replacement'/);
 assert.match(receipt, /coordinator confirms the required replacement donations/);
@@ -13,8 +16,7 @@ for (const expected of [
   'function openReplacementDonationModal(', 'function submitReplacementDonation(',
   'Record Replacement Donation', 'function loadReplacementConfirmationHistory(',
   "request.request_type === 'replacement' && targetStatus === 'fulfilled'",
-  'The request completes automatically at the target.',
-  'Public recruitment has expired. Facility-confirmed replacement donations can still be recorded.'
+  'The request completes automatically at the target.'
 ]) assert.ok(admin.includes(expected), `Missing admin workflow: ${expected}`);
 assert.doesNotMatch(admin, /Â/);
 

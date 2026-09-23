@@ -22,7 +22,7 @@ as $$
     and (br.request_type = 'replacement' or br.expires_at > now())
     and lower(coalesce(d.availability_status, '')) = 'available'
     and lower(coalesce(d.donor_status, '')) in ('approved', 'donated')
-    and (d.last_donation_date is null or d.last_donation_date <= current_date - 56)
+    and (d.last_donation_date is null or d.last_donation_date <= current_date - 90)
     and (
       br.request_type = 'replacement'
       or upper(trim(br.blood_type_needed)) = upper(trim(d.blood_type))
@@ -80,7 +80,7 @@ begin
       or upper(trim(d.blood_type)) = upper(trim(request_row.blood_type_needed)))
     and lower(coalesce(d.availability_status, '')) = 'available'
     and lower(coalesce(d.donor_status, 'registered')) in ('approved', 'donated')
-    and (d.last_donation_date is null or d.last_donation_date <= current_date - 56)
+    and (d.last_donation_date is null or d.last_donation_date <= current_date - 90)
     and not exists (
       select 1 from blood_bank.patient p
       where p.patient_id = request_row.patient_id and p.auth_user_id = d.auth_user_id
@@ -114,7 +114,7 @@ begin
       or upper(trim(d.blood_type)) = upper(trim(request_row.blood_type_needed)))
     and lower(coalesce(d.availability_status, '')) = 'available'
     and lower(coalesce(d.donor_status, 'registered')) in ('approved', 'donated')
-    and (d.last_donation_date is null or d.last_donation_date <= current_date - 56)
+    and (d.last_donation_date is null or d.last_donation_date <= current_date - 90)
     and not exists (
       select 1 from blood_bank.patient p
       where p.patient_id = request_row.patient_id and p.auth_user_id = d.auth_user_id

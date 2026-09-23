@@ -331,7 +331,7 @@ end;
 $$;
 
 -- Donors may pause their own availability, but cannot bypass a medical
--- deferral or the established 56-day donation waiting period.
+-- deferral or the established 90-day donation waiting period.
 create or replace function blood_bank.set_my_donor_availability(p_is_available boolean)
 returns blood_bank.donor
 language plpgsql
@@ -362,8 +362,8 @@ begin
 
   if p_is_available
      and result.last_donation_date is not null
-     and current_date - result.last_donation_date < 56 then
-    raise exception 'You are still within the required 56-day donation waiting period.' using errcode = '22023';
+     and current_date - result.last_donation_date < 90 then
+    raise exception 'You are still within the required 90-day donation waiting period.' using errcode = '22023';
   end if;
 
   update blood_bank.donor

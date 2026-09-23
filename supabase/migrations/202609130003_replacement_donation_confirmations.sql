@@ -94,7 +94,7 @@ begin
     update blood_bank.donor set
       last_donation_date = greatest(coalesce(last_donation_date, p_donation_date), p_donation_date),
       donor_status = 'donated',
-      availability_status = case when current_date - p_donation_date < 56 then 'unavailable' else availability_status end
+      availability_status = case when current_date - p_donation_date < 90 then 'unavailable' else availability_status end
     where donor_id = p_donor_id;
   end if;
   campaign := blood_bank.refresh_replacement_confirmation_progress(p_request_id);

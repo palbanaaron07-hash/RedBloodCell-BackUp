@@ -9,8 +9,8 @@
   <title>Coordinator Dashboard - BloodConnect</title>
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/admin_dashboard.css?v=20260923donordirectory" />
-  <link rel="stylesheet" href="/styles/components/admin-request-details.css?v=20260913verification" />
-  <link rel="stylesheet" href="/styles/components/admin-donor-filters.css?v=20260923donordirectory" />
+  <link rel="stylesheet" href="/styles/components/admin-request-details.css?v=20260924nopink" />
+  <link rel="stylesheet" href="/styles/components/admin-donor-filters.css?v=20260923modalhero" />
   <link rel="stylesheet" href="/styles/components/shared-selects.css?v=20260912a" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
@@ -286,14 +286,13 @@
       <!-- ===== SECTION: DONORS ===== -->
       <div class="page-section" id="section-donors">
 
-        <div class="section-heading">
-          <button class="btn-primary" onclick="openAddDonorModal()"><i class="fa-solid fa-user-plus"></i> Add
-            Donor</button>
-        </div>
-
         <section class="donor-directory full-width" id="donorPanel">
           <div class="donor-directory-header">
             <h3><i class="fa-solid fa-users"></i> All Donors</h3>
+            <button class="btn-primary donor-add-btn" onclick="openAddDonorModal()"><i class="fa-solid fa-user-plus"></i> Add Donor</button>
+          </div>
+          <div class="donor-toolbar">
+            <p id="donorFilterSummary" class="donor-filter-summary" role="status" aria-live="polite"></p>
             <div class="panel-actions donor-filters">
               <label>Status
                 <select id="donorStatusFilter">
@@ -321,26 +320,25 @@
               <button type="button" class="panel-btn" id="clearDonorFilters" disabled>Clear filters</button>
             </div>
           </div>
-          <p id="donorFilterSummary" class="donor-filter-summary" role="status" aria-live="polite"></p>
           <div class="table-wrap donor-table-wrap">
             <table class="data-table" id="donorTable">
               <thead>
                 <tr>
                   <th>Donor</th>
                   <th>Blood Type</th>
-                  <th>Contact</th>
+                  <th>Emergency Contact No.</th>
                   <th>Status</th>
                   <th>Map</th>
                   <th title="Last recorded donation and the next eligible donation interval.">Donation</th>
-                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="donorTableBody">
                 <tr>
-                  <td colspan="7" style="text-align:center;color:var(--slate-400);padding:32px;">Loading donors...</td>
+                  <td colspan="6" style="text-align:center;color:var(--slate-400);padding:32px;">Loading donors...</td>
                 </tr>
               </tbody>
             </table>
+            <div id="donorPaginationBar" class="donor-pagination-bar" style="display:none;"></div>
           </div>
         </section>
 
@@ -350,17 +348,51 @@
       <!-- ===== SECTION: BLOOD REQUESTS ===== -->
       <div class="page-section" id="section-requests">
 
-
-
-        <div class="panel full-width">
-          <div class="panel-header">
-            <h3><i class="fa-solid fa-hand-holding-medical"></i> Blood Requests</h3>
+        <div class="panel full-width" id="requestsPanel">
+          <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <h3><i class="fa-solid fa-hand-holding-medical" style="color:var(--blood-rich);"></i> Blood Requests</h3>
+          </div>
+          <div class="requests-toolbar">
+            <p id="requestsFilterSummary" class="requests-filter-summary" role="status" aria-live="polite"></p>
+            <div class="panel-actions requests-filters">
+              <label>Status
+                <select id="requestStatusFilter">
+                  <option value="all">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="processing">In Review / Processing</option>
+                  <option value="fulfilled">Fulfilled / Completed</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+              <label>Blood type
+                <select id="requestBloodTypeFilter">
+                  <option value="all">All blood types</option>
+                  <option>A+</option>
+                  <option>A-</option>
+                  <option>B+</option>
+                  <option>B-</option>
+                  <option>AB+</option>
+                  <option>AB-</option>
+                  <option>O+</option>
+                  <option>O-</option>
+                </select>
+              </label>
+              <label>Type
+                <select id="requestTypeFilter">
+                  <option value="all">All types</option>
+                  <option value="emergency_donor">Direct / Emergency</option>
+                  <option value="replacement">Hospital Replacement</option>
+                </select>
+              </label>
+              <button type="button" class="panel-btn" id="clearRequestFilters" disabled>Clear filters</button>
+            </div>
           </div>
           <div class="panel-body" style="padding: 12px 0;">
             <div class="request-list" id="requestsSectionList" style="padding: 0 18px;">
-              <div style="text-align:center;color:var(--slate-400);padding:24px 12px;">No blood requests available.
-              </div>
+              <div style="text-align:center;color:var(--slate-400);padding:24px 12px;">Loading blood requests...</div>
             </div>
+            <div id="requestsPaginationBar" class="requests-pagination-bar" style="display:none;"></div>
           </div>
         </div>
 
@@ -888,8 +920,8 @@
                 required />
             </div>
             <div class="form-group">
-              <label for="addDonorMiddleName">Middle Name</label>
-              <input type="text" id="addDonorMiddleName" name="middle_name" placeholder="Optional" maxlength="60"
+              <label for="addDonorMiddleName">Middle Name <span class="optional">(optional)</span></label>
+              <input type="text" id="addDonorMiddleName" name="middle_name" placeholder="e.g. Reyes" maxlength="60"
                 autocomplete="additional-name" />
             </div>
             <div class="form-group">
@@ -921,7 +953,7 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="addDonorPhone">Phone</label>
+              <label for="addDonorPhone">Emergency Contact No.</label>
               <input type="tel" id="addDonorPhone" name="phone" placeholder="09XXXXXXXXX (11 digits)" maxlength="11"
                 inputmode="numeric" />
             </div>
@@ -931,7 +963,6 @@
                 <option value="">Select gender</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
-                <option value="other">Other</option>
               </select>
             </div>
           </div>
@@ -942,7 +973,7 @@
             </div>
             <div class="form-group">
               <label for="addDonorAddress">Address</label>
-              <input type="text" id="addDonorAddress" name="address" placeholder="Street, barangay, municipality"
+              <input type="text" id="addDonorAddress" name="address" placeholder="Barangay, Town/City, Province"
                 maxlength="255" />
             </div>
           </div>
@@ -985,7 +1016,7 @@
               <input type="email" id="profileEmail" readonly />
             </div>
             <div class="form-group">
-              <label>Phone</label>
+              <label>Emergency Contact No.</label>
               <input type="text" id="profilePhone" readonly />
             </div>
           </div>
@@ -1375,53 +1406,6 @@
             onclick="closeDonorIneligibleModal()">
             <i class="fa-solid fa-check"></i> Understood
           </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== NOTIFY ELIGIBLE DONORS MODAL ===== -->
-    <div class="modal-overlay" id="mobilizeDonorsModal" style="z-index: 285;">
-      <div class="modal mobilize-donors-modal">
-        <div class="modal-header">
-          <h3><i class="fa-solid fa-bell"></i> Notify Eligible Donors</h3>
-          <button class="modal-close" onclick="closeMobilizeDonorsModal()">&times;</button>
-        </div>
-        <div class="modal-body mobilize-donors-body">
-          <section class="mobilize-request-summary" aria-label="Request summary">
-            <div class="mobilize-request-summary__person"><strong id="mobilizeRecipientName">Recipient</strong>
-              <div id="mobilizeLocationText"></div>
-            </div>
-            <div class="mobilize-request-summary__need"><span class="type-pill" id="mobilizeBloodTypeBadge">-</span>
-              <div id="mobilizeQuantityText"></div>
-            </div>
-          </section>
-          <p class="mobilize-notice">
-            <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-            Only in-app alerts will be created. SMS and email delivery are not enabled. The authorized blood facility
-            makes the final donor match and screening decision.
-          </p>
-          <div class="mobilize-match-count"><strong id="mobilizeMatchCount">0</strong><span>eligible donor(s)
-              found</span></div>
-          <div class="mobilize-donors-table-wrap">
-            <table class="data-table mobilize-donors-table">
-              <thead>
-                <tr>
-                  <th>Donor</th>
-                  <th>Blood Type</th>
-                  <th>Area</th>
-                  <th>Contact</th>
-                  <th>Eligibility</th>
-                </tr>
-              </thead>
-              <tbody id="mobilizeDonorsTableBody"></tbody>
-            </table>
-          </div>
-          <div id="mobilizeMsg" class="form-msg mobilize-message"></div>
-        </div>
-        <div class="modal-footer mobilize-donors-footer">
-          <button type="button" class="btn-cancel mobilize-cancel" onclick="closeMobilizeDonorsModal()">Cancel</button>
-          <button type="button" class="btn-submit mobilize-send" id="btnBroadcastAppeal"
-            onclick="handleBroadcastAppeal()"><i class="fa-solid fa-bell"></i> Send In-App Alerts</button>
         </div>
       </div>
     </div>

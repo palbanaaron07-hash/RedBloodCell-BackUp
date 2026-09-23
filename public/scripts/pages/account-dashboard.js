@@ -1277,7 +1277,7 @@ function renderDonorDashboard(data) {
     latestDonationDateStr = completedList[0].donation_date;
   }
   const lastDonation = latestDonationDateStr ? new Date(`${latestDonationDateStr}T00:00:00`) : null;
-  const nextEligible = lastDonation ? new Date(lastDonation.getTime() + 56 * 24 * 60 * 60 * 1000) : null;
+  const nextEligible = lastDonation ? new Date(lastDonation.getTime() + 90 * 24 * 60 * 60 * 1000) : null;
 
   // 3. Evaluate eligibility
   const eligibility = typeof isEligibleToCheckIn === 'function'
@@ -1328,7 +1328,7 @@ function renderDonorDashboard(data) {
       ? nextEligible.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       : 'Now';
   }
-  if (nextSub) nextSub.textContent = nextEligible ? 'After the 56-day recovery period' : 'Donation window is open';
+  if (nextSub) nextSub.textContent = nextEligible ? 'After the 3-month recovery period' : 'Donation window is open';
   if (nextCard) nextCard.dataset.state = !nextEligible || eligible ? 'positive' : 'waiting';
 
   // 5. Update Activity Breakdown Summary Pills
@@ -1382,7 +1382,7 @@ function renderDonorDashboard(data) {
     avHelp.textContent = medicallyDeferred
       ? 'Availability is locked until staff clears the deferral.'
       : (!eligible && availability !== 'available'
-        ? 'Availability unlocks after the 56-day waiting period.'
+        ? 'Availability unlocks after the 3-month waiting period.'
         : (['registered', 'checked_in', 'incomplete'].includes(status)
           ? 'Awaiting medical approval. On records your willingness, not eligibility.'
           : 'Receive donor appeals when you meet eligibility requirements.'));
@@ -2020,9 +2020,9 @@ if (sidebarLogoutBtn) {
   });
 }
 
-// ---- Blood Requests & Community Feed State ----
+// ---- Private Blood Request State ----
 let allCommunityRequests = [];
-let activeRequestsTab = 'community';
+let activeRequestsTab = 'my';
 let activeCommunityFilter = 'all';
 let activeMyFilter = 'all';
 let selectedCommunityRequest = null;
@@ -2044,52 +2044,122 @@ function openRequestModal() {
 function closeRequestModal() {
   document.getElementById('requestModal').classList.remove('active');
   document.getElementById('requestForm').reset();
+  selectedRequestDocuments = [];
   if (typeof syncRequestTypeFields === 'function') syncRequestTypeFields();
   syncRequestDocumentLabel();
   document.getElementById('requestMsg').textContent = '';
   document.getElementById('requestMsg').className = 'form-msg';
 }
 
-function syncRequestDocumentLabel() {
-  const input = document.getElementById('requestSupportingDocument');
-  const name = document.getElementById('requestDocumentName');
-  const picker = document.getElementById('requestDocumentPicker');
-  if (!input || !name || !picker) return;
+let selectedRequestDocuments = [];
 
-  const selectedFile = input.files?.[0];
-  name.textContent = selectedFile?.name || 'No document attached';
-  picker.classList.toggle('has-file', Boolean(selectedFile));
+function formatDocFileSize(bytes) {
+  if (!bytes || Number.isNaN(bytes)) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-document.getElementById('requestSupportingDocument')?.addEventListener('change', syncRequestDocumentLabel);
+function syncRequestDocumentLabel() {
+  const name = document.getElementById('requestDocumentName');
+  const picker = document.getElementById('requestDocumentPicker');
+  const list = document.getElementById('requestDocumentList');
+  if (!name || !picker) return;
 
+  const count = selectedRequestDocuments.length;
+  picker.classList.toggle('has-file', count > 0);
 
-function switchRequestsTab(tab) {
-  activeRequestsTab = tab;
-  const tabCommunityBtn = document.getElementById('tabCommunityRequests');
-  const tabMyBtn = document.getElementById('tabMyRequests');
-  const communityContent = document.getElementById('communityRequestsTabContent');
-  const myContent = document.getElementById('myRequestsTabContent');
+  if (count === 0) {
+    name.textContent = 'Attach up to 5 files (JPG, PNG, PDF · 20 MB max each)';
+    if (list) {
+      list.innerHTML = '';
+      list.style.display = 'none';
+    }
+    return;
+  }
 
-  if (tab === 'community') {
-    tabCommunityBtn?.classList.add('active');
-    tabCommunityBtn?.setAttribute('aria-selected', 'true');
-    tabMyBtn?.classList.remove('active');
-    tabMyBtn?.setAttribute('aria-selected', 'false');
-    if (communityContent) { communityContent.hidden = false; communityContent.classList.add('active'); }
-    if (myContent) { myContent.hidden = true; myContent.classList.remove('active'); }
-    applyCommunityFilter();
-  } else {
-    tabMyBtn?.classList.add('active');
-    tabMyBtn?.setAttribute('aria-selected', 'true');
-    tabCommunityBtn?.classList.remove('active');
-    tabCommunityBtn?.setAttribute('aria-selected', 'false');
-    if (myContent) { myContent.hidden = false; myContent.classList.add('active'); }
-    if (communityContent) { communityContent.hidden = true; communityContent.classList.remove('active'); }
-    applyRequestFilter();
+  name.textContent = `${count} file${count === 1 ? '' : 's'} selected (max 5)`;
+
+  if (list) {
+    list.style.display = 'flex';
+    list.innerHTML = selectedRequestDocuments
+      .map((file, idx) => {
+        const ext = (file.name || '').split('.').pop().toLowerCase();
+        const iconClass = ext === 'pdf' ? 'fa-file-pdf' : (['jpg', 'jpeg', 'png'].includes(ext) ? 'fa-file-image' : 'fa-file');
+        return `
+          <div class="request-file-chip" data-file-index="${idx}">
+            <i class="fa-solid ${iconClass} request-file-chip-icon" aria-hidden="true"></i>
+            <div class="request-file-chip-info">
+              <span class="request-file-chip-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+              <span class="request-file-chip-size">${formatDocFileSize(file.size)}</span>
+            </div>
+            <button type="button" class="request-file-chip-remove" onclick="removeRequestDocument(${idx})" title="Remove file" aria-label="Remove ${escapeHtml(file.name)}">&times;</button>
+          </div>
+        `;
+      })
+      .join('');
   }
 }
 
+function handleRequestDocumentSelect(e) {
+  const files = Array.from(e.target?.files || []);
+  if (!files.length) return;
+
+  const maxAllowed = 5;
+  const msg = document.getElementById('requestMsg');
+
+  for (const file of files) {
+    if (selectedRequestDocuments.length >= maxAllowed) {
+      if (msg) {
+        msg.textContent = `You can attach a maximum of ${maxAllowed} files.`;
+        msg.className = 'form-msg warning';
+      }
+      break;
+    }
+    const isDuplicate = selectedRequestDocuments.some(
+      (f) => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified
+    );
+    if (!isDuplicate) {
+      if (file.size > 20 * 1024 * 1024) {
+        if (msg) {
+          msg.textContent = `File "${file.name}" exceeds the 20 MB size limit.`;
+          msg.className = 'form-msg error';
+        }
+        continue;
+      }
+      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+      if (!allowedTypes.includes(file.type) && !/\.(jpg|jpeg|png|pdf)$/i.test(file.name)) {
+        if (msg) {
+          msg.textContent = `File "${file.name}" is not a supported format (JPG, PNG, PDF only).`;
+          msg.className = 'form-msg error';
+        }
+        continue;
+      }
+      selectedRequestDocuments.push(file);
+    }
+  }
+
+  e.target.value = '';
+  syncRequestDocumentLabel();
+}
+
+function removeRequestDocument(index) {
+  if (index >= 0 && index < selectedRequestDocuments.length) {
+    selectedRequestDocuments.splice(index, 1);
+    syncRequestDocumentLabel();
+  }
+}
+window.removeRequestDocument = removeRequestDocument;
+
+document.getElementById('requestSupportingDocument')?.addEventListener('change', handleRequestDocumentSelect);
+
+
+function switchRequestsTab() {
+  activeRequestsTab = 'my';
+  const myContent = document.getElementById('myRequestsTabContent');
+  if (myContent) { myContent.hidden = false; myContent.classList.add('active'); }
+  applyRequestFilter();
+}
 function formatTimeAgo(isoString) {
   if (!isoString) return 'Recently';
   const date = new Date(isoString);
@@ -2246,190 +2316,132 @@ window.hideFeedCard = hideFeedCard;
 window.unhideFeedCard = unhideFeedCard;
 
 function openCommunityRequestDetails(reqId) {
-  const req = allCommunityRequests.find(r => String(r.id) === String(reqId)) ||
-    (Array.isArray(allRequests) ? allRequests.find(r => String(r.id || r.request_id) === String(reqId)) : null);
+  const req = (Array.isArray(allRequests)
+    ? allRequests.find((request) => String(request.id || request.request_id) === String(reqId))
+    : null);
   if (!req) return;
   selectedCommunityRequest = req;
 
   const modal = document.getElementById('communityRequestDetailModal');
   const body = document.getElementById('communityRequestDetailBody');
-  const isReplacement = req.request_type === 'replacement';
-  const isUrgent = !isReplacement && (String(req.urgency || '').toLowerCase() === 'urgent' || String(req.urgency || '').toLowerCase() === 'critical');
-  const bloodType = escapeHtml(req.blood_type || req.blood_type_needed || 'O+');
+  if (!body) return;
+
+  const requestId = req.id || req.request_id;
+  const bloodType = escapeHtml(req.blood_type || req.blood_type_needed || 'Not specified');
   const units = Number(req.units_needed || req.quantity || 1);
-  const hospital = escapeHtml(req.donation_point || req.hospital || req.hospital_name || 'Blood Bank Center');
-  const description = escapeHtml(req.notes || req.note || 'Emergency blood transfusion required.');
-  const contact = escapeHtml(req.patient_phone || 'Available via Hospital Blood Coordinator');
-  const timeDateDisplay = escapeHtml(req.needed_time || (isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'));
-  const lifecycle = getCommunityLifecycle(req);
-  const ownRequest = isMyOwnRequest(req);
-  const donor = donorDashboardData?.donor || currentProfile?.donor_profile || null;
-  const donorEligibility = getDonorRequestEligibility(donor);
-  const donorBloodType = String(donor?.blood_type || '').trim().toUpperCase().replace(/\s+/g, '');
-  const requestedBloodType = String(req.blood_type || req.blood_type_needed || '').trim().toUpperCase().replace(/\s+/g, '');
-  const bloodCompatible = isReplacement || Boolean(
-    donorBloodType && requestedBloodType && receiveFrom[requestedBloodType]?.includes(donorBloodType)
-  );
-  const campaign = req.replacement_campaign || {};
-  const targetUnits = Number(campaign.target_units || units);
-  const pledgedUnits = Number(campaign.pledged_units || 0);
-  const confirmedUnits = Number(campaign.confirmed_units || 0);
-  const guidanceByStatus = {
-    active: ownRequest
-      ? (isReplacement
-        ? 'Your request stays active and accepts donor pledges until all required replacement units are confirmed, or you cancel it. The Blood Donation Coordinator records verified donations.'
-        : 'Your request is live on the community feed and accepting donor responses. You cannot respond to your own request.')
-      : (isReplacement
-        ? 'This replacement campaign stays active until the required units are confirmed. Tap respond below if you can help replace blood used for the patient.'
-        : 'As a registered blood donor, your donation can directly save this recipient. Tap respond below to pledge your support.'),
-    covered: isReplacement
-      ? 'The pledge target has been reached, so new responses are paused. The request remains open until the Blood Donation Coordinator confirms all replacement units.'
-      : 'Enough donors have pledged to help. This request is no longer accepting responses.',
-    fulfilled: isReplacement
-      ? 'The Blood Donation Coordinator confirmed all required replacement units. This campaign is complete.'
-      : 'The recipient confirmed that blood was received. This request is closed.',
-    expired: 'This request expired and has been archived from the community feed.'
-  };
-  let responseGuidance = guidanceByStatus[lifecycle.status];
-  if (!ownRequest && lifecycle.status === 'active' && !donor?.donor_id) {
-    responseGuidance = 'Enable Donor View and complete your donor profile before responding.';
-  } else if (!ownRequest && lifecycle.status === 'active' && !donorEligibility.eligible) {
-    responseGuidance = donorEligibility.reason;
-  } else if (!ownRequest && lifecycle.status === 'active' && !bloodCompatible) {
-    responseGuidance = `Your ${donorBloodType || 'registered'} blood type cannot donate red cells to a ${requestedBloodType} recipient.`;
-  }
-  const emergencyPledges = Array.isArray(req.pledges) ? req.pledges : [];
-  const activeEmergencyPledgeUnits = emergencyPledges
-    .filter((pledge) => ['pledged', 'request_fulfilled', 'recipient_confirmed'].includes(String(pledge.status).toLowerCase()))
-    .reduce((total, pledge) => total + Number(pledge.units_pledged || 1), 0);
-  const progressSummary = isReplacement
-    ? `<div class="community-detail-progress" aria-label="Replacement donation progress">
-        <div class="community-progress-card community-progress-card--pledged ${getRequestProgressTone(pledgedUnits, targetUnits)}">
-          <span><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i> Donor pledges</span>
-          <strong>${pledgedUnits}/${targetUnits} unit${targetUnits !== 1 ? 's' : ''} pledged</strong>
-        </div>
-        <div class="community-progress-card community-progress-card--confirmed ${getRequestProgressTone(confirmedUnits, targetUnits)}">
-          <span><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Facility-confirmed donations</span>
-          <strong>${confirmedUnits}/${targetUnits} unit${targetUnits !== 1 ? 's' : ''} confirmed</strong>
-        </div>
-      </div>`
-    : req.request_type === 'emergency_donor' && ownRequest
-      ? `<div class="community-detail-progress" aria-label="Emergency donor pledge progress">
-          <div class="community-progress-card community-progress-card--pledged ${getRequestProgressTone(activeEmergencyPledgeUnits, units)}">
-            <span><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i> ${lifecycle.status === 'fulfilled' ? 'Recorded donor pledges' : 'Active donor pledges'}</span>
-            <strong>${activeEmergencyPledgeUnits}/${units} donor${activeEmergencyPledgeUnits === 1 ? '' : 's'} pledged</strong>
-          </div>
-        </div>`
-      : '';
-  const verificationSupport = ownRequest ? req.verification_support : null;
+  const facility = escapeHtml(req.donation_point || req.hospital || req.hospital_name || 'Blood bank');
+  const neededTime = escapeHtml(req.needed_time || 'As soon as available');
+  const description = escapeHtml(req.notes || req.note || 'No additional notes provided.');
+  const headerStatus = getRequestHeaderStatus(req);
+  const verificationSupport = req.verification_support || null;
   const requesterVerificationLabels = {
     uploaded_document: 'Supporting document reviewed',
     physical_document: 'Physical document reviewed in person',
     facility_confirmation: 'Confirmed with facility representative',
     other: 'Other documented verification'
   };
-  const privateSupportSummary = verificationSupport
-    ? `<section class="patient-private-support">
-        <strong class="patient-private-support__title"><i class="fa-solid fa-lock" aria-hidden="true"></i> Private verification support</strong>
+  const allDocs = getPatientRequestAllDocuments(req);
+  const privateSupportSummary = (verificationSupport || allDocs.length > 0)
+    ? `<section class="patient-private-support" id="patientPrivateSupportContainer">
+        <strong class="patient-private-support__title"><i class="fa-solid fa-lock" aria-hidden="true"></i> Verification information</strong>
         <div class="patient-private-support__details">
-          <div class="patient-private-support__item"><span>Facility contact</span><b>${escapeHtml(verificationSupport.facility_contact || 'Not provided')}</b></div>
-          <div class="patient-private-support__item"><span>Coordinator verification</span><b>${escapeHtml(verificationSupport.verification_method ? (requesterVerificationLabels[verificationSupport.verification_method] || 'Verified') : 'Pending')}</b></div>
-          ${verificationSupport.verification_note ? `<div class="patient-private-support__item patient-private-support__item--wide"><span>Verification note</span><b>${escapeHtml(verificationSupport.verification_note)}</b></div>` : ''}
+          <div class="patient-private-support__item"><span>Facility contact</span><b>${escapeHtml(verificationSupport?.facility_contact || 'Not provided')}</b></div>
+          <div class="patient-private-support__item"><span>Admin verification</span><b>${escapeHtml(verificationSupport?.verification_method ? (requesterVerificationLabels[verificationSupport.verification_method] || 'Verified') : 'Pending')}</b></div>
+          ${verificationSupport?.verification_note ? `<div class="patient-private-support__item patient-private-support__item--wide"><span>Admin note</span><b>${escapeHtml(verificationSupport.verification_note)}</b></div>` : ''}
         </div>
-        ${verificationSupport.storage_path
-          ? `<a id="patientRequestDocumentLink" href="#" aria-disabled="true"><i class="fa-solid fa-paperclip" aria-hidden="true"></i> Preparing ${escapeHtml(verificationSupport.file_name || 'supporting document')}...</a>`
-          : '<span class="patient-private-support__document-state">No supporting document attached.</span>'}
-      </section>`
-    : '';
-  const donorSupportSummary = ownRequest
-    ? `<section class="requester-donor-support" aria-labelledby="requesterDonorSupportTitle">
-        <strong id="requesterDonorSupportTitle"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i> Donor support preferences</strong>
-        <p id="requesterDonorSupportContent">Loading donor preferences...</p>
-      </section>`
-    : '';
-  const pledgeStatusLabels = {
-    pledged: 'Active pledge',
-    request_fulfilled: 'Request fulfilled',
-    recipient_confirmed: 'Receipt confirmed',
-    unable_to_donate: 'Unable to donate',
-    cancelled: 'Cancelled'
-  };
-  const requesterPledgeList = ownRequest && ['emergency_donor', 'replacement'].includes(req.request_type)
-    ? `<section class="requester-donor-support" aria-labelledby="requesterPledgeListTitle">
-        <strong id="requesterPledgeListTitle"><i class="fa-solid fa-users" aria-hidden="true"></i> Donors who pledged</strong>
-        ${emergencyPledges.length
-          ? emergencyPledges.map((pledge) => `<span class="requester-donor-support__pledge"><span><b>${escapeHtml(pledge.donor_name || 'Registered donor')}</b> · ${escapeHtml(pledge.blood_type || 'Blood type unavailable')} · ${escapeHtml(pledgeStatusLabels[String(pledge.status).toLowerCase()] || pledge.status || 'Pledged')}<br><small>Pledged ${escapeHtml(formatDateShort(pledge.pledged_at))}</small></span>${String(pledge.status).toLowerCase() === 'pledged' ? `<button type="button" class="request-pledge-unsuccessful" onclick="openPledgeUnsuccessfulModal(${Number(req.id || req.request_id)}, ${Number(pledge.pledge_id)})"><i class="fa-solid fa-user-xmark" aria-hidden="true"></i> Did not complete</button>` : ''}</span>`).join('')
-          : '<p>No donors have pledged yet.</p>'}
+        <div class="patient-private-support__docs-wrap" style="margin-top:10px;">
+          ${allDocs.length > 0
+            ? `<div id="patientSupportingDocsList" class="patient-supporting-docs-list">
+                ${allDocs.map((doc) => `<div class="patient-doc-item patient-doc-item--loading"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Preparing ${escapeHtml(doc.file_name || 'document')}...</span></div>`).join('')}
+              </div>`
+            : '<span class="patient-private-support__document-state">No supporting document attached.</span>'}
+        </div>
       </section>`
     : '';
 
   body.innerHTML = `
-        <div class="community-detail-info-card">
-          <div class="community-detail-item">
-            <span class="label"><i class="fa-solid fa-file-waveform"></i> Request</span>
-            <span class="val">Request #${req.id || req.request_id}</span>
-          </div>
-          <div class="community-detail-item community-detail-need">
-            <span class="label"><i class="fa-solid ${isReplacement ? 'fa-rotate' : 'fa-droplet'}"></i> ${isReplacement ? 'Replacement Needed' : 'Blood Needed'}</span>
-            <span class="val">${isReplacement
-              ? `${units} replacement donor${units !== 1 ? 's' : ''} · Any eligible blood type`
-              : `${units} Unit${units !== 1 ? 's' : ''} (${bloodType})`}</span>
-          </div>
-          ${isReplacement ? '' : `<div class="community-detail-item">
-            <span class="label"><i class="fa-solid fa-shield-heart"></i> Urgency</span>
-            <span class="val">${isUrgent ? '<span class="feed-urgent-badge"><i class="fa-solid fa-triangle-exclamation"></i> URGENT</span>' : 'Standard Routine'}</span>
-          </div>`}
-          <div class="community-detail-item">
-            <span class="label"><i class="fa-solid fa-hospital"></i> Donation Point</span>
-            <span class="val">${hospital}</span>
-          </div>
-          <div class="community-detail-item">
-            <span class="label"><i class="fa-regular fa-calendar-days"></i> Time &amp; Date Needed</span>
-            <span class="val">${timeDateDisplay}</span>
-          </div>
-          <div class="community-detail-item">
-            <span class="label"><i class="fa-solid fa-phone"></i> Contact</span>
-            <span class="val">${contact}</span>
-          </div>
-        </div>
-        <section class="community-detail-description" aria-labelledby="communityDetailDescriptionTitle">
-          <h4 id="communityDetailDescriptionTitle"><i class="fa-regular fa-clipboard" aria-hidden="true"></i> Reason / Problem Description</h4>
-          <p>
-            ${description}
-          </p>
-        </section>
-        ${progressSummary}
-        ${requesterPledgeList}
-        ${privateSupportSummary}
-        ${donorSupportSummary}
-        <div class="community-response-guidance community-response-guidance--${lifecycle.status}">
-          <i class="fa-solid fa-circle-info" style="margin-top:2px;"></i>
-          <span>${responseGuidance}</span>
-        </div>
-      `;
+    <div class="community-response-guidance community-response-guidance--active">
+      <i class="fa-solid fa-lock" aria-hidden="true"></i>
+      <span>Private request — visible only to you and authorized blood bank admins.</span>
+    </div>
+    <div class="community-detail-info-card">
+      <div class="community-detail-item">
+        <span class="label"><i class="fa-solid fa-file-waveform"></i> Request</span>
+        <span class="val">#${escapeHtml(String(requestId))}</span>
+      </div>
+      <div class="community-detail-item">
+        <span class="label"><i class="fa-solid fa-circle-info"></i> Status</span>
+        <span class="val"><span class="feed-status-pill ${headerStatus.tone}">${headerStatus.label}</span></span>
+      </div>
+      <div class="community-detail-item community-detail-need">
+        <span class="label"><i class="fa-solid fa-droplet"></i> Blood required</span>
+        <span class="val">${units} unit${units === 1 ? '' : 's'} of ${bloodType}</span>
+      </div>
+      <div class="community-detail-item">
+        <span class="label"><i class="fa-solid fa-hospital"></i> Facility</span>
+        <span class="val">${facility}</span>
+      </div>
+      <div class="community-detail-item">
+        <span class="label"><i class="fa-regular fa-calendar-days"></i> Needed</span>
+        <span class="val">${neededTime}</span>
+      </div>
+    </div>
+    <section class="community-detail-description" aria-labelledby="communityDetailDescriptionTitle">
+      <h4 id="communityDetailDescriptionTitle"><i class="fa-regular fa-clipboard" aria-hidden="true"></i> Notes</h4>
+      <p>${description}</p>
+    </section>
+    ${privateSupportSummary}
+  `;
 
-  const pledgeButton = document.getElementById('btnPledgeHelp');
-  const canRespond = !ownRequest
-    && lifecycle.status === 'active'
-    && Boolean(donor?.donor_id)
-    && donorEligibility.eligible
-    && bloodCompatible;
-  if (pledgeButton) {
-    pledgeButton.hidden = !canRespond;
-    pledgeButton.style.display = canRespond ? '' : 'none';
-    pledgeButton.disabled = !canRespond;
-    pledgeButton.innerHTML = '<i class="fa-solid fa-heart-pulse"></i> Respond / Offer Blood Donation';
-  }
   modal?.classList.add('active');
   if (!document.body.classList.contains('community-detail-open')) {
     communityDetailScrollPosition = window.scrollY || document.documentElement.scrollTop || 0;
     document.body.style.top = `-${communityDetailScrollPosition}px`;
     document.body.classList.add('community-detail-open');
   }
-  if (verificationSupport?.storage_path) preparePatientRequestDocument(verificationSupport);
-  if (ownRequest) loadRequesterDonorSupportPreferences(req.id || req.request_id);
-}
+  if (allDocs.length > 0) {
+    preparePatientRequestDocuments(allDocs);
+  }
 
+  // Async refresh fresh verification support and documents
+  const targetReqNum = Number(requestId);
+  if (Number.isInteger(targetReqNum) && targetReqNum > 0) {
+    const fetchPromises = [];
+    if (typeof listRequestVerificationSupport === 'function') {
+      fetchPromises.push(listRequestVerificationSupport([targetReqNum]));
+    } else {
+      fetchPromises.push(Promise.resolve({ data: [] }));
+    }
+    if (typeof listRequestSupportingDocuments === 'function') {
+      fetchPromises.push(listRequestSupportingDocuments([targetReqNum]));
+    } else {
+      fetchPromises.push(Promise.resolve({ data: [] }));
+    }
+
+    Promise.all(fetchPromises).then(([suppRes, docsRes]) => {
+      const freshSupp = suppRes?.data?.[0] || null;
+      const freshDocs = docsRes?.data || [];
+      if (freshSupp) req.verification_support = freshSupp;
+      if (freshDocs.length) req.supporting_documents = freshDocs;
+
+      const currentAllDocs = getPatientRequestAllDocuments(req);
+      if (modal?.classList.contains('active')) {
+        const docsListElem = document.getElementById('patientSupportingDocsList');
+        if (docsListElem && currentAllDocs.length > 0) {
+          preparePatientRequestDocuments(currentAllDocs);
+        } else if (currentAllDocs.length > 0) {
+          const wrap = document.querySelector('#patientPrivateSupportContainer .patient-private-support__docs-wrap');
+          if (wrap) {
+            wrap.innerHTML = `<div id="patientSupportingDocsList" class="patient-supporting-docs-list">
+              ${currentAllDocs.map((doc) => `<div class="patient-doc-item patient-doc-item--loading"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Preparing ${escapeHtml(doc.file_name || 'document')}...</span></div>`).join('')}
+            </div>`;
+            preparePatientRequestDocuments(currentAllDocs);
+          }
+        }
+      }
+    }).catch(() => {});
+  }
+}
 const donorSupportPreferenceLabels = {
   meals: 'Meals and packed snacks',
   travel: 'Travel allowance',
@@ -2464,6 +2476,62 @@ async function loadRequesterDonorSupportPreferences(requestId) {
       ? `<span class="requester-donor-support__pledge"><b>${escapeHtml(pledge.donor_name || 'A donor')}</b> requested: ${choices}</span>`
       : '<span class="requester-donor-support__pledge">The donor did not select any support preferences.</span>';
   }).join('');
+}
+
+function getPatientRequestAllDocuments(req) {
+  const docs = Array.isArray(req?.supporting_documents) ? [...req.supporting_documents] : [];
+  if (req?.verification_support?.storage_path) {
+    const exists = docs.some((d) => d.storage_path === req.verification_support.storage_path);
+    if (!exists) {
+      docs.unshift({
+        storage_path: req.verification_support.storage_path,
+        file_name: req.verification_support.file_name || 'supporting-document',
+        mime_type: req.verification_support.mime_type,
+        file_size: req.verification_support.file_size
+      });
+    }
+  }
+  return docs;
+}
+
+async function preparePatientRequestDocuments(documents) {
+  const container = document.getElementById('patientSupportingDocsList');
+  if (!container || !Array.isArray(documents) || !documents.length) return;
+
+  const results = await Promise.all(
+    documents.map(async (doc) => {
+      const { data, error } = await createRequestDocumentSignedUrl(doc.storage_path);
+      return {
+        doc,
+        url: error ? null : data?.signedUrl
+      };
+    })
+  );
+
+  if (!document.body.contains(container)) return;
+
+  container.innerHTML = results
+    .map(({ doc, url }) => {
+      const fileName = doc.file_name || 'supporting-document';
+      const ext = (fileName || '').split('.').pop().toLowerCase();
+      const iconClass = ext === 'pdf' ? 'fa-file-pdf' : (['jpg', 'jpeg', 'png'].includes(ext) ? 'fa-file-image' : 'fa-file');
+      const sizeStr = doc.file_size ? formatDocFileSize(doc.file_size) : '';
+      if (!url) {
+        return `<div class="patient-doc-item patient-doc-item--disabled">
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+          <span>${escapeHtml(fileName)}${sizeStr ? ` (${sizeStr})` : ''} - Unavailable</span>
+        </div>`;
+      }
+      return `<a class="patient-doc-item patient-doc-card" href="${url}" target="_blank" rel="noopener noreferrer" title="Open ${escapeHtml(fileName)}">
+        <i class="fa-solid ${iconClass}" aria-hidden="true"></i>
+        <div class="patient-doc-info">
+          <span class="patient-doc-name">${escapeHtml(fileName)}</span>
+          <span class="patient-doc-size">${sizeStr ? `${sizeStr} · ` : ''}Click to open</span>
+        </div>
+        <i class="fa-solid fa-arrow-up-right-from-square patient-doc-open-icon" aria-hidden="true"></i>
+      </a>`;
+    })
+    .join('');
 }
 
 async function preparePatientRequestDocument(support) {
@@ -2611,27 +2679,22 @@ async function loadCommunityRequests() {
   applyCommunityFilter();
 }
 
-function getRequestHeaderStatus(request, lifecycle) {
-  const operational = String(request.operational_status || request.status_raw || '').toLowerCase();
-  if (['cancelled', 'canceled'].includes(operational)) {
-    return { label: 'Cancelled', tone: 'cancelled' };
-  }
-  if (['expired', 'fulfilled'].includes(lifecycle.status)) {
-    return { label: lifecycle.label, tone: lifecycle.status };
-  }
+function getRequestHeaderStatus(request) {
+  const operational = String(request.operational_status || request.status_raw || 'pending').toLowerCase();
   const verification = String(request.verification_status || 'pending').toLowerCase();
-  if (verification === 'rejected' || operational === 'rejected') {
-    return { label: 'Not approved', tone: 'rejected' };
-  }
-  if (verification === 'needs_clarification' || operational === 'needs_clarification') {
-    return { label: 'Needs clarification', tone: 'needs_clarification' };
-  }
-  if (verification !== 'verified' || operational === 'pending') {
-    return { label: 'Pending verification', tone: 'pending' };
-  }
-  return { label: lifecycle.label, tone: lifecycle.status };
+  const effectiveStatus = ['rejected', 'needs_clarification'].includes(verification) ? verification : operational;
+  const statuses = {
+    pending: { label: 'Pending review', tone: 'pending' },
+    needs_clarification: { label: 'Needs clarification', tone: 'needs_clarification' },
+    approved: { label: 'Approved', tone: 'active' },
+    processing: { label: 'Processing', tone: 'active' },
+    fulfilled: { label: 'Fulfilled', tone: 'fulfilled' },
+    rejected: { label: 'Not approved', tone: 'rejected' },
+    cancelled: { label: 'Cancelled', tone: 'cancelled' },
+    canceled: { label: 'Cancelled', tone: 'cancelled' }
+  };
+  return statuses[effectiveStatus] || statuses.pending;
 }
-
 function getFulfillmentAttribution(request, lifecycle) {
   if (lifecycle?.status !== 'fulfilled') return null;
 
@@ -2650,74 +2713,41 @@ function getFulfillmentAttribution(request, lifecycle) {
 }
 
 function renderRequestCard(r) {
-  const reqId = r.id;
-  const bloodTypeStr = escapeHtml(r.blood_type || 'O+');
-  const units = Number(r.units_needed || 1);
-  const isReplacement = r.request_type === 'replacement';
-  const isUrgent = !isReplacement && (String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical');
-  const donationPoint = escapeHtml(r.donation_point || r.hospital || 'Blood Bank');
-  const description = escapeHtml(r.notes || 'Blood transfusion support requested.');
-  const postedTime = formatTimeAgo(r.created_at);
-  const lifecycle = getCommunityLifecycle(r);
-  const status = lifecycle.status;
-  const headerStatus = getRequestHeaderStatus(r, lifecycle);
-  const fulfillmentAttribution = getFulfillmentAttribution(r, lifecycle);
-  const arrangementLabel = isReplacement ? 'Blood Replacement' : (r.request_type === 'emergency_donor' ? 'Blood Request' : '');
-  const pledges = Array.isArray(r.pledges) ? r.pledges : [];
-  const activePledgedUnits = pledges
-    .filter((pledge) => ['pledged', 'request_fulfilled', 'recipient_confirmed'].includes(String(pledge.status).toLowerCase()))
-    .reduce((total, pledge) => total + Number(pledge.units_pledged || 1), 0);
-
-  const campaign = r.replacement_campaign || {};
-  const replacementTarget = Number(campaign.target_units || units);
-  const replacementPledged = Number(campaign.pledged_units || 0);
-  const replacementConfirmed = Number(campaign.confirmed_units || 0);
-  const progressText = isReplacement
-    ? `${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)} donors pledged · ${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)} units confirmed`
-    : '';
-  const operationalStatus = String(r.operational_status || r.status_raw || '').toLowerCase();
+  const reqId = r.id || r.request_id;
+  const bloodType = escapeHtml(r.blood_type || r.blood_type_needed || 'Not specified');
+  const units = Number(r.units_needed || r.quantity || 1);
+  const isUrgent = ['urgent', 'critical'].includes(String(r.urgency || r.urgency_level || '').toLowerCase());
+  const facility = escapeHtml(r.donation_point || r.hospital || r.hospital_name || 'Blood bank');
+  const submittedTime = formatTimeAgo(r.created_at || r.request_date);
+  const neededTime = escapeHtml(r.needed_time || 'As soon as available');
+  const headerStatus = getRequestHeaderStatus(r);
+  const fulfillmentAttribution = getFulfillmentAttribution(r, getCommunityLifecycle(r));
+  const operationalStatus = String(r.operational_status || r.status_raw || 'pending').toLowerCase();
   const verificationStatus = String(r.verification_status || 'pending').toLowerCase();
-  const isClosedHistory = ['fulfilled', 'expired'].includes(status)
-    || ['cancelled', 'canceled', 'rejected', 'fulfilled'].includes(operationalStatus);
-  const canEdit = status === 'active' && r.verification_status !== 'verified';
-  const canDelete = !isClosedHistory
-    && ['pending', 'needs_clarification'].includes(operationalStatus)
-    && verificationStatus !== 'verified';
-  const canCancel = !isClosedHistory && !canDelete
-    && (operationalStatus === 'approved' || verificationStatus === 'verified')
-    && ['active', 'covered'].includes(status);
+  const isClosedHistory = ['cancelled', 'canceled', 'rejected', 'fulfilled'].includes(operationalStatus);
+  const canEdit = ['pending', 'needs_clarification'].includes(operationalStatus) && verificationStatus !== 'verified';
+  const canDelete = !isClosedHistory && ['pending', 'needs_clarification'].includes(operationalStatus) && verificationStatus !== 'verified';
+  const canCancel = !isClosedHistory && !canDelete && ['approved', 'processing'].includes(operationalStatus);
   const hasRequestMenu = canEdit || canDelete || canCancel;
-  const hasActivePledge = pledges.some((pledge) => String(pledge.status).toLowerCase() === 'pledged');
-  const canComplete = hasActivePledge && (status === 'active' || status === 'covered') && !r.recipient_received_at;
-  const completionAction = canComplete
-    ? '<button type="button" class="btn-feed-received" onclick="markBloodReceived(' + Number(reqId) + ')"><i class="fa-solid fa-heart-circle-check"></i> Mark Blood Received</button>'
-    : '';
   const menuId = `myReqMenu-${reqId}`;
-  const timeDateDisplay = escapeHtml(r.needed_time || (isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'));
 
   return `
     <article class="feed-request-card my-request-card" id="myReqCard-${reqId}" data-request-id="${reqId}">
       <div class="feed-card-header">
         <div class="feed-requester-info">
-          <div class="feed-requester-avatar my-request-avatar">
-            <i class="fa-solid fa-droplet" aria-hidden="true"></i>
-          </div>
+          <div class="feed-requester-avatar my-request-avatar"><i class="fa-solid fa-lock" aria-hidden="true"></i></div>
           <div style="flex:1; min-width:0;">
             <div class="request-card-heading">
-              <h4 class="feed-requester-name">
-                Request #${reqId}
-              </h4>
+              <h4 class="feed-requester-name">Request #${reqId}</h4>
               <span class="feed-status-pill ${headerStatus.tone}">${headerStatus.label}</span>
             </div>
-            ${arrangementLabel ? `<span class="request-arrangement-text">${arrangementLabel}</span>` : ''}
-            <span class="feed-post-time"><i class="fa-regular fa-clock"></i> Submitted ${postedTime}</span>
+            <span class="request-arrangement-text">Private request</span>
+            <span class="feed-post-time"><i class="fa-regular fa-clock"></i> Submitted ${submittedTime}</span>
             ${fulfillmentAttribution ? `<span class="request-fulfillment-attribution ${fulfillmentAttribution.source}"><i class="fa-solid ${fulfillmentAttribution.icon}" aria-hidden="true"></i> ${fulfillmentAttribution.label}</span>` : ''}
           </div>
         </div>
         ${hasRequestMenu ? `<div class="my-req-menu-wrap" style="position:relative;">
-          <button type="button" class="feed-options-btn" onclick="toggleMyReqMenu('${reqId}')" aria-label="Options" title="Options">
-            <i class="fa-solid fa-ellipsis-vertical"></i>
-          </button>
+          <button type="button" class="feed-options-btn" onclick="toggleMyReqMenu('${reqId}')" aria-label="Options" title="Options"><i class="fa-solid fa-ellipsis-vertical"></i></button>
           <div class="my-req-dropdown" id="${menuId}" style="display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:140px;z-index:200;overflow:hidden;">
             ${canEdit ? `<button type="button" class="my-req-menu-item" onclick="openEditRequestModal(${reqId})" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 16px;background:none;border:none;cursor:pointer;font-size:0.875rem;color:#1e293b;"><i class="fa-solid fa-pen-to-square" style="color:var(--accent);"></i> Edit Request</button>` : ''}
             ${canDelete ? `<button type="button" class="my-req-menu-item" onclick="openRequestActionModal(${reqId}, 'delete')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 16px;background:none;border:none;cursor:pointer;font-size:0.875rem;color:var(--accent, #800000);"><i class="fa-solid fa-trash"></i> Delete Request</button>` : ''}
@@ -2725,54 +2755,28 @@ function renderRequestCard(r) {
           </div>
         </div>` : ''}
       </div>
-
       <div class="feed-inner-box">
         <div class="feed-requirement-row">
           <div class="feed-blood-badge-wrap">
-            <div class="feed-blood-droplet" aria-hidden="true">
-              <i class="fa-solid fa-droplet"></i>
-            </div>
+            <div class="feed-blood-droplet" aria-hidden="true"><i class="fa-solid fa-droplet"></i></div>
             <div>
-              <span class="feed-looking-label">${isReplacement ? 'REPLACEMENT DONORS NEEDED' : 'LOOKING FOR'}</span>
-              <h3 class="feed-blood-title">${isReplacement
-                ? `${units} replacement donor${units !== 1 ? 's' : ''} · Any eligible blood type`
-                : `${units} unit${units !== 1 ? 's' : ''} of ${bloodTypeStr} blood`}</h3>
+              <span class="feed-looking-label">BLOOD REQUEST</span>
+              <h3 class="feed-blood-title">${units} unit${units === 1 ? '' : 's'} of ${bloodType}</h3>
             </div>
           </div>
           ${isUrgent ? `<span class="feed-urgent-badge"><i class="fa-solid fa-triangle-exclamation"></i> URGENT</span>` : ''}
         </div>
-
         <div class="feed-info-grid">
-          <div class="feed-info-col">
-            <span class="feed-info-label"><i class="fa-solid fa-location-dot"></i> Donation point</span>
-            <p class="feed-info-val">${donationPoint}</p>
-          </div>
-          <div class="feed-info-col">
-            <span class="feed-info-label"><i class="fa-regular fa-calendar-days"></i> Needed by</span>
-            <p class="feed-info-val">${timeDateDisplay}</p>
-          </div>
-        </div>
-
-        <div class="feed-desc-section">
-          <span class="feed-desc-label">Reason for request</span>
-          <p class="feed-desc-text">${description || 'No description provided.'}</p>
-          ${isReplacement ? `<div class="request-progress-summary my-request-progress" aria-label="Replacement donation progress">
-            <span class="${getRequestProgressTone(replacementPledged, replacementTarget)}"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i><strong>${replacementPledged}/${replacementTarget}</strong> donors pledged</span>
-            <span class="${getRequestProgressTone(replacementConfirmed, replacementTarget)}"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><strong>${replacementConfirmed}/${replacementTarget}</strong> units confirmed</span>
-          </div>` : r.request_type === 'emergency_donor' ? `<div class="request-progress-summary my-request-progress" aria-label="Emergency donor pledge progress">
-            <span class="${getRequestProgressTone(activePledgedUnits, units)}"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i><strong>${activePledgedUnits}/${units}</strong> donors pledged</span>
-          </div>` : ''}
+          <div class="feed-info-col"><span class="feed-info-label"><i class="fa-solid fa-hospital"></i> Facility</span><p class="feed-info-val">${facility}</p></div>
+          <div class="feed-info-col"><span class="feed-info-label"><i class="fa-regular fa-calendar-days"></i> Needed</span><p class="feed-info-val">${neededTime}</p></div>
         </div>
       </div>
-
       <div class="feed-actions-row">
-        ${completionAction}
         <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">View Details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
       </div>
     </article>
   `;
 }
-
 let pendingBloodReceipt = null;
 let bloodReceiptSaving = false;
 let bloodReceiptReturnFocus = null;
@@ -3094,31 +3098,19 @@ window.closeDeleteRequestModal = closeDeleteRequestModal;
 function applyRequestFilter() {
   const fullList = document.getElementById('requestList');
   const emptyMsg = '<p style="text-align:center;color:var(--slate-400);padding:24px 0;">No requests for this filter yet.</p>';
-
-  const filtered = (allRequests || []).filter((r) => {
-    if (activeMyFilter === 'active') {
-      return r.status === 'active';
-    }
-    if (activeMyFilter === 'covered') {
-      return r.status === 'covered';
-    }
-    if (activeMyFilter === 'fulfilled') {
-      return r.status === 'fulfilled';
-    }
-    if (activeMyFilter === 'expired') {
-      return r.status === 'expired';
-    }
+  const filtered = (allRequests || []).filter((request) => {
+    const status = String(request.operational_status || request.status_raw || 'pending').toLowerCase();
+    if (activeMyFilter === 'pending') return ['pending', 'needs_clarification'].includes(status);
+    if (activeMyFilter === 'approved') return ['approved', 'processing'].includes(status);
+    if (activeMyFilter === 'fulfilled') return status === 'fulfilled';
+    if (activeMyFilter === 'closed') return ['rejected', 'cancelled', 'canceled'].includes(status);
     return true;
   });
-
   if (fullList) fullList.innerHTML = filtered.length ? filtered.map(renderRequestCard).join('') : emptyMsg;
 }
-
 async function loadRequests() {
   const emptyMsg = '<p style="text-align:center;color:var(--slate-400);padding:24px 0;">No blood requests yet. Click Create Request above to submit one.</p>';
 
-  // Load community feed as well
-  loadCommunityRequests();
 
   try {
     const { data: requests, error } = await listMyBloodRequests();
@@ -3141,8 +3133,8 @@ async function loadRequests() {
 
     allRequests = requests;
 
-    const fulfilled = requests.filter(r => r.status === 'fulfilled').length;
-    const pending = requests.filter(r => r.status === 'active').length;
+    const fulfilled = requests.filter(r => r.operational_status === 'fulfilled').length;
+    const pending = requests.filter(r => ['pending', 'needs_clarification'].includes(r.operational_status)).length;
 
     // Update stats on dashboard and requests section
     ['statTotalRequests', 'statTotalRequests2'].forEach(id => {
@@ -3168,7 +3160,6 @@ async function loadRequests() {
 
     // Full list in My Requests section (filtered)
     applyRequestFilter();
-    applyCommunityFilter();
 
     // Recent 3 on dashboard
     if (dashList) dashList.innerHTML = requests.slice(0, 3).map(renderRequestCard).join('');
@@ -3286,7 +3277,16 @@ document.getElementById('requestForm').addEventListener('submit', async (e) => {
     if (!saved) {
       msg.textContent = 'Submitting request...';
       msg.className = 'form-msg info';
-      const result = await createBloodRequest(Object.fromEntries(new FormData(form)));
+      const requestPayload = Object.fromEntries(new FormData(form));
+      const inputDocElement = document.getElementById('requestSupportingDocument');
+      const fallbackFiles = Array.from(inputDocElement?.files || []).filter((f) => f && f.size > 0);
+      const docsToSubmit = (typeof selectedRequestDocuments !== 'undefined' && Array.isArray(selectedRequestDocuments) && selectedRequestDocuments.length > 0)
+        ? selectedRequestDocuments
+        : fallbackFiles;
+      if (docsToSubmit.length > 0) {
+        requestPayload.supporting_documents = docsToSubmit;
+      }
+      const result = await createBloodRequest(requestPayload);
       if (result?.error) throw new Error(result.error.message || 'Failed to submit request.');
       if (!result?.data?.request_id) throw new Error('Submission not confirmed. Check My Requests before trying again.');
       submissionWarning = String(result.warning || '');
@@ -3294,7 +3294,7 @@ document.getElementById('requestForm').addEventListener('submit', async (e) => {
       form.dataset.requestSaved = 'true';
     }
     clearTimeout(slowTimer);
-    msg.textContent = 'Request saved for coordinator verification. Refreshing My Requests...';
+    msg.textContent = 'Request sent privately to the blood bank admin. Refreshing My Requests...';
     msg.className = 'form-msg success';
     activeMyFilter = 'all';
     document.querySelectorAll('#myFilterMenu .my-filter-item').forEach(item => {
@@ -3478,7 +3478,7 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
   // 5. Phone Number validation (if provided, must be valid 11-digit Philippine mobile starting with 09)
   if (payload.phone) {
     if (!PH_MOBILE_REGEX.test(payload.phone)) {
-      showProfileError('Phone number must be an 11-digit mobile number starting with 09 (e.g., 09123456789).', phInput);
+      showProfileError('Emergency contact number must be an 11-digit mobile number starting with 09 (e.g., 09123456789).', phInput);
       return;
     }
   }

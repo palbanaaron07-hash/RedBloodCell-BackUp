@@ -43,13 +43,13 @@ assert.doesNotMatch(client.slice(communityStart, communityEnd), /listRequestVeri
 for (const required of ['name="supporting_document"', 'name="facility_contact"', 'Only you and authorized coordinators can view it']) {
   assert.ok(patientHtml.includes(required), `Missing recipient form control: ${required}`);
 }
-assert.match(patient, /ownRequest \? req\.verification_support : null/);
+assert.match(patient, /const verificationSupport = req\.verification_support \|\| null/);
 assert.match(admin, /rpc\('verify_blood_request'/);
 assert.match(admin, /Uploaded supporting document reviewed/);
 assert.match(admin, /Physical document reviewed in person/);
 assert.match(admin, /Confirmed with facility representative/);
 assert.match(admin, /Other documented verification/);
-assert.match(admin, /Verify and Publish Request/);
+assert.match(admin, /Verify and Approve Request/);
 assert.match(adminHtml, /id="requestStatusSubmit"/);
 
 console.log('Private request verification support checks passed.');

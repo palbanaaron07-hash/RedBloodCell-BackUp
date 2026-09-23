@@ -65,9 +65,9 @@ create table if not exists blood_bank.donor_status_log (
 create index if not exists idx_status_log_donor on blood_bank.donor_status_log(donor_id);
 
 -- ----------------------------------------------------------------
--- 4. Function: enforce 56-day (8-week) waiting period
+-- 4. Function: enforce 90-day (3-month) waiting period
 --    Raises an exception if an admin tries to mark a donor
---    as donated when fewer than 56 days have passed since
+--    as donated when fewer than 90 days have passed since
 --    their last donation date.
 -- ----------------------------------------------------------------
 
@@ -82,10 +82,10 @@ begin
   if new.donor_status = 'donated' and old.donor_status is distinct from 'donated' then
     if old.last_donation_date is not null then
       days_since := (current_date - old.last_donation_date);
-      if days_since < 56 then
+      if days_since < 90 then
         raise exception
-          'Donor must wait 56 days between donations. % days remain.',
-          (56 - days_since)
+          'Donor must wait 90 days (3 months) between donations. % days remain.',
+          (90 - days_since)
           using errcode = 'P0001';
       end if;
     end if;

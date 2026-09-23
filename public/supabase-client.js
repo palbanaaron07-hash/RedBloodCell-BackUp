@@ -185,6 +185,7 @@ function bloodBank() {
   return supabaseClient.schema('blood_bank');
 }
 
+const REQUEST_DOCUMENT_MAX_COUNT = 5;
 const REQUEST_DOCUMENT_BUCKET = 'request-supporting-documents';
 const REQUEST_DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
 const REQUEST_DOCUMENT_TYPES = {
@@ -202,6 +203,111 @@ function validateRequestSupportingDocument(file) {
     return { ok: false, file: null, message: 'Supporting document must be 20 MB or smaller.' };
   }
   return { ok: true, file, message: '' };
+}
+
+function validateRequestSupportingDocuments(files) {
+  const fileList = Array.isArray(files)
+    ? files
+    : (files instanceof FileList ? Array.from(files) : (files ? [files] : []));
+  const validFiles = fileList.filter((f) => f && typeof f === 'object' && Number(f.size) > 0);
+  if (!validFiles.length) {
+    return { ok: true, files: [], message: '' };
+  }
+  if (validFiles.length > REQUEST_DOCUMENT_MAX_COUNT) {
+    return {
+      ok: false,
+      files: [],
+      message: `You can attach a maximum of ${REQUEST_DOCUMENT_MAX_COUNT} supporting documents.`
+    };
+  }
+  for (const file of validFiles) {
+    if (!REQUEST_DOCUMENT_TYPES[file.type]) {
+      return {
+        ok: false,
+        files: [],
+        message: `File "${file.name || 'document'}" is not supported. Please upload JPG, PNG, or PDF files only.`
+      };
+    }
+    if (Number(file.size) > REQUEST_DOCUMENT_MAX_BYTES) {
+      return {
+        ok: false,
+        files: [],
+        message: `File "${file.name || 'document'}" exceeds the 20 MB size limit.`
+      };
+    }
+  }
+  return { ok: true, files: validFiles, message: '' };
+}
+
+async function saveRequestSupportingDocuments(requestId, files) {
+  const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+  if (userError || !user) return { data: [], error: { message: 'Not authenticated' } };
+
+  const validation = validateRequestSupportingDocuments(files);
+  if (!validation.ok) return { data: [], error: { message: validation.message } };
+  if (!validation.files.length) return { data: [], error: null };
+
+  const uploadedDocs = [];
+  const uploadedPaths = [];
+
+  for (const file of validation.files) {
+    const extension = REQUEST_DOCUMENT_TYPES[file.type] || 'bin';
+    const uniquePart = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const storagePath = `${user.id}/${Number(requestId)}/${uniquePart}.${extension}`;
+
+    const { error: uploadError } = await supabaseClient.storage
+      .from(REQUEST_DOCUMENT_BUCKET)
+      .upload(storagePath, file, { cacheControl: '3600', contentType: file.type, upsert: false });
+
+    if (uploadError) {
+      if (uploadedPaths.length) {
+        await supabaseClient.storage.from(REQUEST_DOCUMENT_BUCKET).remove(uploadedPaths);
+      }
+      return { data: [], error: mapError(uploadError, `Failed to upload "${file.name || 'supporting document'}".`) };
+    }
+
+    uploadedPaths.push(storagePath);
+    uploadedDocs.push({
+      request_id: Number(requestId),
+      storage_path: storagePath,
+      file_name: String(file.name || `supporting-document.${extension}`).slice(0, 255),
+      mime_type: file.type,
+      file_size: Number(file.size),
+      created_by: user.id
+    });
+  }
+
+  const { data, error } = await bloodBank()
+    .from('request_supporting_documents')
+    .insert(uploadedDocs)
+    .select('*');
+
+  if (error) {
+    if (uploadedPaths.length) {
+      await supabaseClient.storage.from(REQUEST_DOCUMENT_BUCKET).remove(uploadedPaths);
+    }
+    return {
+      data: [],
+      error: mapError(error, 'The request was saved, but its supporting documents could not be saved to the database.')
+    };
+  }
+
+  return { data: data || [], error: null };
+}
+
+async function listRequestSupportingDocuments(requestIds) {
+  const ids = [...new Set((requestIds || []).map(Number).filter(Number.isInteger))];
+  if (!ids.length) return { data: [], error: null };
+  const { data, error } = await bloodBank()
+    .from('request_supporting_documents')
+    .select('id, request_id, storage_path, file_name, mime_type, file_size, created_by, created_at')
+    .in('request_id', ids)
+    .order('created_at', { ascending: true });
+  return error
+    ? { data: [], error: mapError(error, 'Failed to load supporting documents.') }
+    : { data: data || [], error: null };
 }
 
 async function saveRequestVerificationSupport(requestId, facilityContact, file) {
@@ -712,10 +818,8 @@ async function getMyDonorDashboardData() {
     }
   }
 
-  let matchingResult = await bloodBank().rpc('get_my_matching_requests');
-  if (matchingResult.error && isMissingMultiRoleRpc(matchingResult.error)) {
-    matchingResult = { data: null, error: { message: 'Matching requests require a database update. Please contact the coordinator.' } };
-  }
+  const matchingResult = { data: [], error: null };
+
 
   if (historyResult.error) {
     return { data: null, error: mapError(historyResult.error, 'Failed to load donation history.') };
@@ -1306,10 +1410,19 @@ async function getValidAuthSession() {
   const hadPersistedSession = hasPersistedAuthSession();
 
   try {
-    const sessionResult = await supabaseClient.auth.getSession();
+    let sessionResult = await supabaseClient.auth.getSession();
     let session = sessionResult.data?.session || null;
     const expiresAt = Number(session?.expires_at || 0) * 1000;
     const needsRefresh = Boolean(session && expiresAt && expiresAt <= Date.now() + 60_000);
+
+    // If session is missing but we know a token is persisted in storage, the Supabase SDK
+    // may still be hydrating after a hot-reload or quick page refresh.
+    // Wait briefly and retry getSession() before falling back to a full token refresh.
+    if (!session && hadPersistedSession && !needsRefresh && !sessionResult.error) {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      sessionResult = await supabaseClient.auth.getSession();
+      session = sessionResult.data?.session || null;
+    }
 
     if (sessionResult.error || needsRefresh || (!session && hadPersistedSession)) {
       const refreshResult = await supabaseClient.auth.refreshSession();
@@ -1401,7 +1514,17 @@ function getDashboardDestination(user, profile) {
 }
 
 async function requireAdmin() {
-  const { user, profile } = await getCurrentUser();
+  let { user, profile } = await getCurrentUser();
+
+  // If auth check fails on first attempt (e.g. race condition during hot-reload /
+  // page refresh before SDK finishes reading storage), retry once after a short delay
+  // before concluding the session is gone and redirecting to login.
+  if (!user || !profile) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const retry = await getCurrentUser();
+    user = retry.user;
+    profile = retry.profile;
+  }
 
   if (!user || !profile) {
     window.location.replace('login.html');
@@ -1579,10 +1702,10 @@ async function listVisibleDonors() {
       if (status === 'approved') return true;
       if (row?.last_donation_date) {
         const next = new Date(row.last_donation_date);
-        next.setDate(next.getDate() + 56);
+        next.setDate(next.getDate() + 90);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        if (next > today) return false; // Still within 56-day waiting period
+        if (next > today) return false; // Still within 90-day waiting period
       }
       return status === 'donated' || status === 'available';
     };
@@ -1989,9 +2112,10 @@ async function listMyBloodRequests() {
   });
 
   const requestIds = normalized.map((request) => request.id);
-  const [supportResult, pledgeResult] = await Promise.all([
+  const [supportResult, pledgeResult, docsResult] = await Promise.all([
     listRequestVerificationSupport(requestIds),
-    listRequestPledges(requestIds)
+    listRequestPledges(requestIds),
+    listRequestSupportingDocuments(requestIds)
   ]);
   const supportByRequest = new Map((supportResult.data || []).map((item) => [Number(item.request_id), item]));
   const pledgesByRequest = new Map();
@@ -2000,9 +2124,16 @@ async function listMyBloodRequests() {
     if (!pledgesByRequest.has(key)) pledgesByRequest.set(key, []);
     pledgesByRequest.get(key).push(pledge);
   });
+  const docsByRequest = new Map();
+  (docsResult.data || []).forEach((doc) => {
+    const key = Number(doc.request_id);
+    if (!docsByRequest.has(key)) docsByRequest.set(key, []);
+    docsByRequest.get(key).push(doc);
+  });
   normalized.forEach((request) => {
     request.verification_support = supportByRequest.get(Number(request.id)) || null;
     request.pledges = pledgesByRequest.get(Number(request.id)) || [];
+    request.supporting_documents = docsByRequest.get(Number(request.id)) || [];
   });
 
   return { data: normalized, error: null };
@@ -2052,8 +2183,12 @@ async function deleteMyBloodRequest(requestId) {
 
   const numId = Number(requestId);
   const targetId = !isNaN(numId) ? numId : requestId;
-  const supportResult = await listRequestVerificationSupport([targetId]);
+  const [supportResult, docsResult] = await Promise.all([
+    listRequestVerificationSupport([targetId]),
+    listRequestSupportingDocuments([targetId])
+  ]);
   const support = supportResult.data?.[0] || null;
+  const docs = docsResult.data || [];
 
   const { data, error } = await bloodBank().rpc('manage_my_blood_request', {
     p_request_id: targetId,
@@ -2064,13 +2199,18 @@ async function deleteMyBloodRequest(requestId) {
     return { data: null, error: { message: 'The database did not confirm that the request was deleted.' } };
   }
 
-  const storagePath = data?.storage_path || support?.storage_path;
+  const pathsToRemove = [
+    data?.storage_path,
+    support?.storage_path,
+    ...docs.map((d) => d.storage_path)
+  ].filter(Boolean);
+
   let warning = '';
-  if (storagePath) {
+  if (pathsToRemove.length) {
     const { error: storageError } = await supabaseClient.storage
       .from(REQUEST_DOCUMENT_BUCKET)
-      .remove([storagePath]);
-    if (storageError) warning = 'The request was deleted, but its uploaded document could not be removed automatically.';
+      .remove(pathsToRemove);
+    if (storageError) warning = 'The request was deleted, but attached documents could not be removed automatically.';
   }
 
   return { data, error: null, warning };
@@ -2350,8 +2490,8 @@ async function createBloodRequest(payload) {
     };
   }
 
-  const supportingDocument = payload.supporting_document;
-  const documentValidation = validateRequestSupportingDocument(supportingDocument);
+  const rawDocs = payload.supporting_documents || payload.supporting_document || payload.documents || [];
+  const documentValidation = validateRequestSupportingDocuments(rawDocs);
   if (!documentValidation.ok) {
     return { data: null, error: { message: documentValidation.message } };
   }
@@ -2406,12 +2546,23 @@ async function createBloodRequest(payload) {
     const supportResult = await saveRequestVerificationSupport(
       data.request_id,
       payload.facility_contact,
-      documentValidation.file
+      null
     );
     if (supportResult.error) {
       return { data, error: null, warning: supportResult.error.message };
     }
     if (supportResult.data) data.verification_support = supportResult.data;
+
+    if (documentValidation.files && documentValidation.files.length > 0) {
+      const docResult = await saveRequestSupportingDocuments(
+        data.request_id,
+        documentValidation.files
+      );
+      if (docResult.error) {
+        return { data, error: null, warning: docResult.error.message };
+      }
+      data.supporting_documents = docResult.data || [];
+    }
   }
 
   return { data, error };
@@ -3512,9 +3663,10 @@ async function getOverviewRecentRequests(limit = 100) {
       });
 
     const requestIds = normalized.map((request) => request.request_id || request.id);
-    const [supportResult, pledgeResult] = await Promise.all([
+    const [supportResult, pledgeResult, docsResult] = await Promise.all([
       listRequestVerificationSupport(requestIds),
-      listRequestPledges(requestIds)
+      listRequestPledges(requestIds),
+      listRequestSupportingDocuments(requestIds)
     ]);
     const supportByRequest = new Map((supportResult.data || []).map((item) => [Number(item.request_id), item]));
     const pledgesByRequest = new Map();
@@ -3523,9 +3675,16 @@ async function getOverviewRecentRequests(limit = 100) {
       if (!pledgesByRequest.has(key)) pledgesByRequest.set(key, []);
       pledgesByRequest.get(key).push(pledge);
     });
+    const docsByRequest = new Map();
+    (docsResult.data || []).forEach((doc) => {
+      const key = Number(doc.request_id);
+      if (!docsByRequest.has(key)) docsByRequest.set(key, []);
+      docsByRequest.get(key).push(doc);
+    });
     normalized.forEach((request) => {
       request.verification_support = supportByRequest.get(Number(request.request_id || request.id)) || null;
       request.pledges = pledgesByRequest.get(Number(request.request_id || request.id)) || [];
+      request.supporting_documents = docsByRequest.get(Number(request.request_id || request.id)) || [];
     });
 
     return { data: normalized, error: null };
@@ -3559,7 +3718,7 @@ async function getOverviewRecentDonations(limit = 5) {
    ============================================================ */
 
 /**
- * Client-side check: has the donor passed the mandatory 56-day waiting period?
+ * Client-side check: has the donor passed the mandatory 90-day (3-month) waiting period?
  * Returns { eligible: bool, daysRemaining: number }
  */
 function isEligibleToCheckIn(donor) {
@@ -3570,7 +3729,7 @@ function isEligibleToCheckIn(donor) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-  const remaining = Math.max(0, 56 - diffDays);
+  const remaining = Math.max(0, 90 - diffDays);
   return { eligible: remaining === 0, daysRemaining: remaining };
 }
 
@@ -3730,13 +3889,13 @@ async function markDonorDonated(payload) {
       existingDonor = fetched;
     } catch (_) { /* ignore - proceed */ }
 
-    // 2. Client-side 56-day rule check only for completed donations
+    // 2. Client-side 90-day rule check only for completed donations
     if (donationStatus === 'completed' && existingDonor) {
       const eligibility = isEligibleToCheckIn(existingDonor);
       if (!eligibility.eligible) {
         return {
           data: null,
-          error: { message: `Donor must wait ${eligibility.daysRemaining} more day(s) before donating again (56-day rule).` }
+          error: { message: `Donor must wait ${eligibility.daysRemaining} more day(s) before donating again (90-day rule).` }
         };
       }
     }
@@ -3744,7 +3903,7 @@ async function markDonorDonated(payload) {
     let updatedDonor = existingDonor;
     let inventoryRow = null;
     const nextDate = new Date(todayStr);
-    nextDate.setDate(nextDate.getDate() + 56);
+    nextDate.setDate(nextDate.getDate() + 90);
 
     if (donationStatus === 'completed') {
       // 3. Primary donor status update for completed donation

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "verify:architecture": "node build-tools/verify-architecture.mjs",
     "test:admin-notifications": "node build-tools/test-admin-notifications.mjs",
-    "test:pending-urgent": "node build-tools/test-pending-urgent-requests.mjs"
+    "test:pending-urgent": "node build-tools/test-pending-urgent-requests.mjs",
+    "test:admin-only-requests": "node build-tools/test-admin-only-blood-requests.mjs"
   },
   "dependencies": {
     "vite": "^6.0.5"

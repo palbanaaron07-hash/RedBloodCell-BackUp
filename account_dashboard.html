@@ -276,7 +276,7 @@
               <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-calendar-day"></i></div><p class="stat-label">Next eligible</p></div>
               <div class="stat-body">
                 <h2 class="stat-number donor-stat-text" id="donorNextEligibleStat">--</h2>
-                <p class="stat-sub" id="donorNextEligibleSub">Based on the 56-day recovery period</p>
+                <p class="stat-sub" id="donorNextEligibleSub">Based on the 3-month recovery period</p>
               </div>
             </div>
           </section>
@@ -336,18 +336,6 @@
               </div>
             </div>
 
-            <div class="card span-2 donor-matches-panel">
-              <div class="card-head">
-                <h3><i class="fa-solid fa-hand-holding-droplet"></i> Requests You Can Help With</h3>
-                <span class="badge approved" id="donorMatchCount">0 matches</span>
-              </div>
-              <div class="card-body">
-                <div class="request-list" id="donorMatchingRequests">
-                  <div class="skeleton-request-card"><div class="skeleton-request-header"><span class="skeleton skeleton-circle" style="width:40px;height:40px"></span><div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg" style="width:55%"></span><span class="skeleton skeleton-text" style="width:40%"></span></div></div><div class="skeleton-request-pills"><span class="skeleton skeleton-pill" style="width:60px;height:20px"></span><span class="skeleton skeleton-pill" style="width:80px;height:20px"></span></div><span class="skeleton skeleton-text" style="width:90%"></span></div>
-                  <div class="skeleton-request-card"><div class="skeleton-request-header"><span class="skeleton skeleton-circle" style="width:40px;height:40px"></span><div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg" style="width:48%"></span><span class="skeleton skeleton-text" style="width:36%"></span></div></div><div class="skeleton-request-pills"><span class="skeleton skeleton-pill" style="width:56px;height:20px"></span><span class="skeleton skeleton-pill" style="width:74px;height:20px"></span></div><span class="skeleton skeleton-text" style="width:85%"></span></div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -367,95 +355,15 @@
           </button>
         </div>
 
-        <!-- Tab Switcher: Community Feed vs My Requests -->
-        <div class="requests-view-tabs" role="tablist">
-          <button type="button" class="req-tab-btn active" id="tabCommunityRequests"
-            onclick="switchRequestsTab('community')" role="tab" aria-selected="true">
-            <i class="fa-solid fa-users"></i> Community Requests (<span id="communityCount">0</span>)
-          </button>
-          <button type="button" class="req-tab-btn" id="tabMyRequests" onclick="switchRequestsTab('my')" role="tab"
-            aria-selected="false">
-            <i class="fa-solid fa-file-waveform"></i> My Requests (<span id="myRequestsCount">0</span>)
-          </button>
-        </div>
-
-        <!-- Community Requests Feed -->
-        <div class="requests-tab-content active" id="communityRequestsTabContent">
-          <!-- Community Filter Bar -->
-          <div class="tab-filter-bar">
-            <div class="filter-dropdown" id="filterDropdown">
-              <button class="filter-trigger" id="filterTrigger" type="button" aria-haspopup="listbox"
-                aria-expanded="false" title="Filter requests">
-                <i class="fa-solid fa-sliders"></i>
-                <span id="selectedFilterText">All Requests</span>
-                <i class="fa-solid fa-chevron-down"></i>
-              </button>
-              <div class="filter-menu" id="filterMenu" role="listbox">
-                <button class="filter-item active" data-request-filter="all" role="option">
-                  <i class="fa-solid fa-layer-group"></i>
-                  <span>All Requests</span>
-                </button>
-                <button class="filter-item" data-request-filter="urgent" role="option">
-                  <i class="fa-solid fa-triangle-exclamation"></i>
-                  <span>Urgent Only</span>
-                </button>
-                <button class="filter-item" data-request-filter="A+" role="option">
-                  <i class="fa-solid fa-droplet"></i>
-                  <span>A+ Needed</span>
-                </button>
-                <button class="filter-item" data-request-filter="A-" role="option">
-                  <i class="fa-solid fa-droplet"></i>
-                  <span>A- Needed</span>
-                </button>
-                <button class="filter-item" data-request-filter="B+" role="option">
-                  <i class="fa-solid fa-droplet"></i>
-                  <span>B+ Needed</span>
-                </button>
-                <button class="filter-item" data-request-filter="B-" role="option">
-                  <i class="fa-solid fa-droplet"></i>
-                  <span>B- Needed</span>
-                </button>
-                <button class="filter-item" data-request-filter="AB+" role="option">
-                  <i class="fa-solid fa-droplet"></i>
-                  <span>AB+ Needed</span>
-                </button>
-                <button class="filter-item" data-request-filter="AB-" role="option">
-                  <i class="fa-solid fa-droplet"></i>
-                  <span>AB- Needed</span>
-                </button>
-                <button class="filter-item" data-request-filter="O+" role="option">
-                  <i class="fa-solid fa-droplet"></i>
-                  <span>O+ Needed</span>
-                </button>
-                <button class="filter-item" data-request-filter="O-" role="option">
-                  <i class="fa-solid fa-droplet"></i>
-                  <span>O- Needed</span>
-                </button>
-                <button class="filter-item" data-request-filter="hidden" role="option">
-                  <i class="fa-solid fa-eye-slash"></i>
-                  <span>Hidden Requests (<span id="hiddenCount">0</span>)</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="community-request-feed" id="communityRequestFeed">
-            <div id="communitySkeletonHolder">
-              <div class="skeleton-request-card"><div class="skeleton-request-header"><span class="skeleton skeleton-circle" style="width:42px;height:42px"></span><div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg" style="width:52%"></span><span class="skeleton skeleton-text" style="width:37%"></span></div><span class="skeleton skeleton-pill" style="width:58px;height:22px"></span></div><div class="skeleton-request-pills"><span class="skeleton skeleton-pill" style="width:62px;height:20px"></span><span class="skeleton skeleton-pill" style="width:76px;height:20px"></span></div><span class="skeleton skeleton-text" style="width:92%"></span><span class="skeleton skeleton-text" style="width:75%"></span></div>
-              <div class="skeleton-request-card"><div class="skeleton-request-header"><span class="skeleton skeleton-circle" style="width:42px;height:42px"></span><div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg" style="width:46%"></span><span class="skeleton skeleton-text" style="width:33%"></span></div><span class="skeleton skeleton-pill" style="width:58px;height:22px"></span></div><div class="skeleton-request-pills"><span class="skeleton skeleton-pill" style="width:58px;height:20px"></span><span class="skeleton skeleton-pill" style="width:70px;height:20px"></span></div><span class="skeleton skeleton-text" style="width:88%"></span><span class="skeleton skeleton-text" style="width:68%"></span></div>
-              <div class="skeleton-request-card"><div class="skeleton-request-header"><span class="skeleton skeleton-circle" style="width:42px;height:42px"></span><div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg" style="width:58%"></span><span class="skeleton skeleton-text" style="width:40%"></span></div><span class="skeleton skeleton-pill" style="width:58px;height:22px"></span></div><div class="skeleton-request-pills"><span class="skeleton skeleton-pill" style="width:64px;height:20px"></span><span class="skeleton skeleton-pill" style="width:82px;height:20px"></span></div><span class="skeleton skeleton-text" style="width:94%"></span><span class="skeleton skeleton-text" style="width:72%"></span></div>
-            </div>
-          </div>
-        </div>
-
         <!-- My Requests Tab Content -->
-        <div class="requests-tab-content" id="myRequestsTabContent" hidden>
+        <div class="requests-tab-content active" id="myRequestsTabContent">
 
           <!-- My Requests Header & Filter Bar -->
           <div class="tab-filter-bar"
             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px;">
             <h3
               style="font-size: 1.05rem; font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px;">
-              <i class="fa-solid fa-hand-holding-medical" style="color: var(--accent);"></i> My Submitted Requests
+              <i class="fa-solid fa-hand-holding-medical" style="color: var(--accent);"></i> My Blood Requests
             </h3>
             <div class="filter-dropdown" id="myFilterDropdown">
               <button class="filter-trigger" id="myFilterTrigger" type="button" aria-haspopup="listbox"
@@ -469,27 +377,27 @@
                   <i class="fa-solid fa-layer-group"></i>
                   <span>All Requests</span>
                 </button>
-                <button class="filter-item my-filter-item" data-my-filter="active" role="option">
-                  <i class="fa-solid fa-tower-broadcast"></i>
-                  <span>Active / Urgent</span>
+                <button class="filter-item my-filter-item" data-my-filter="pending" role="option">
+                  <i class="fa-solid fa-clock"></i>
+                  <span>Pending Review</span>
                 </button>
-                <button class="filter-item my-filter-item" data-my-filter="covered" role="option">
-                  <i class="fa-solid fa-people-group"></i>
-                  <span>Pledged / Covered</span>
+                <button class="filter-item my-filter-item" data-my-filter="approved" role="option">
+                  <i class="fa-solid fa-user-shield"></i>
+                  <span>Approved / Processing</span>
                 </button>
                 <button class="filter-item my-filter-item" data-my-filter="fulfilled" role="option">
                   <i class="fa-solid fa-heart-circle-check"></i>
-                  <span>Completed / Fulfilled</span>
+                  <span>Fulfilled</span>
                 </button>
-                <button class="filter-item my-filter-item" data-my-filter="expired" role="option">
-                  <i class="fa-solid fa-clock-rotate-left"></i>
-                  <span>Expired</span>
+                <button class="filter-item my-filter-item" data-my-filter="closed" role="option">
+                  <i class="fa-solid fa-circle-xmark"></i>
+                  <span>Rejected / Cancelled</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <!-- My Requests Feed (Standalone cards, matching Community Requests) -->
+          <!-- Private requests sent to the blood bank -->
           <div class="community-request-feed" id="requestList">
             <div id="myRequestsSkeletonHolder">
               <div class="skeleton-request-card"><div class="skeleton-request-header"><span class="skeleton skeleton-circle" style="width:42px;height:42px"></span><div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg" style="width:50%"></span><span class="skeleton skeleton-text" style="width:36%"></span></div><span class="skeleton skeleton-pill" style="width:58px;height:22px"></span></div><div class="skeleton-request-pills"><span class="skeleton skeleton-pill" style="width:62px;height:20px"></span><span class="skeleton skeleton-pill" style="width:76px;height:20px"></span></div><span class="skeleton skeleton-text" style="width:90%"></span></div>
@@ -542,7 +450,7 @@
               </div>
               <div class="profile-meta">
                 <div class="profile-meta-row">
-                  <span class="meta-label"><i class="fa-solid fa-phone"></i> Phone</span>
+                  <span class="meta-label"><i class="fa-solid fa-phone"></i> Emergency Contact No.</span>
                   <span class="meta-value" id="profilePhone">-</span>
                 </div>
                 <div class="profile-meta-row">
@@ -641,7 +549,7 @@
         </div>
         <form id="requestForm" class="modal-body">
           <input type="hidden" name="request_type" value="emergency_donor" />
-          <p class="request-form-intro">Tell the blood bank what is needed. A coordinator will verify the request, check matching blood availability, and contact eligible donors when additional support is required. <span>Fields marked * are required.</span></p>
+          <p class="request-form-intro">Tell the blood bank what is needed. An authorized admin will privately review the request and coordinate the appropriate blood supply. <span>Fields marked * are required.</span></p>
           <fieldset class="request-form-section">
             <legend>1. Blood requirements</legend>
           <div class="form-row" id="requestBloodRequirementsRow">
@@ -697,28 +605,30 @@
           </fieldset>
           <fieldset class="request-form-section request-verification-support">
             <legend>3. Verification support <span class="optional">Optional</span></legend>
-            <p class="verification-support-intro">These details help the Blood Donation Coordinator verify your request. They are not shown on the community feed.</p>
+            <p class="verification-support-intro">These private details help the blood bank verify and process your request.</p>
             <div class="form-group">
               <label for="requestFacilityContact">Facility contact number <span class="optional">Optional</span></label>
               <input id="requestFacilityContact" type="tel" name="facility_contact" maxlength="120" placeholder="Official facility number, if available" />
             </div>
             <div class="form-group">
-              <span class="request-field-label" id="requestDocumentLabel">Supporting document <span class="optional">Optional</span></span>
+              <span class="request-field-label" id="requestDocumentLabel">Supporting documents <span class="optional">Optional</span></span>
               <input id="requestSupportingDocument" class="request-file-input" type="file" name="supporting_document"
                 accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf"
+                multiple
                 aria-labelledby="requestDocumentLabel requestDocumentName" aria-describedby="requestDocumentHelp" />
               <label class="request-attachment-picker" id="requestDocumentPicker" for="requestSupportingDocument">
                 <span class="request-attachment-icon" aria-hidden="true"><i class="fa-solid fa-paperclip"></i></span>
                 <span class="request-attachment-copy">
-                  <strong>Attach supporting document</strong>
-                  <span id="requestDocumentName">No document attached</span>
+                  <strong>Attach supporting documents</strong>
+                  <span id="requestDocumentName">Attach up to 5 files (JPG, PNG, PDF · 20 MB max each)</span>
                 </span>
-                <i class="fa-solid fa-chevron-right request-attachment-chevron" aria-hidden="true"></i>
+                <i class="fa-solid fa-cloud-arrow-up request-attachment-chevron" aria-hidden="true"></i>
               </label>
+              <div id="requestDocumentList" class="request-file-list" style="display:none;" aria-live="polite"></div>
               <small id="requestDocumentHelp">Hospital request, referral, or replacement document. JPG, PNG, or PDF up to 20 MB. Only you and authorized coordinators can view it.</small>
             </div>
           </fieldset>
-          <p class="request-review-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Your request is sent privately to the blood bank for coordinator verification. It is shared with eligible donors only when donor assistance is needed.</p>
+          <p class="request-review-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Your request is sent privately to the blood bank admin. It is not published as a community request.</p>
           <div id="requestMsg" class="form-msg" role="status" aria-live="polite"></div>
           <div class="modal-footer">
             <button type="button" class="btn-cancel" onclick="closeRequestModal()">Cancel</button>
@@ -816,7 +726,7 @@
       </div>
     </div>
 
-    <!-- ===== COMMUNITY REQUEST DETAIL MODAL ===== -->
+    <!-- ===== PRIVATE REQUEST DETAIL MODAL ===== -->
     <dialog id="bloodReceivedDialog" aria-labelledby="bloodReceivedTitle" aria-describedby="bloodReceivedQuestion bloodReceivedGuidance">
       <div class="receipt-dialog-header">
         <span class="receipt-dialog-icon" aria-hidden="true"><i class="fa-solid fa-hand-holding-heart"></i></span>
@@ -844,9 +754,6 @@
         </div>
         <div class="modal-footer community-detail-modal-footer">
           <button type="button" class="btn-cancel" onclick="closeCommunityRequestDetailModal()">Close</button>
-          <button type="button" class="btn-submit btn-pledge-help" id="btnPledgeHelp" onclick="handlePledgeHelp()">
-            <i class="fa-solid fa-heart-pulse"></i> Respond / Offer Blood Donation
-          </button>
         </div>
         <div class="pledge-inline-confirm" id="pledgeUnsuccessfulInline" hidden>
           <button type="button" class="pledge-inline-confirm__backdrop" onclick="closePledgeUnsuccessfulModal()" aria-label="Cancel unsuccessful pledge confirmation"></button>
@@ -974,7 +881,7 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Phone Number</label>
+              <label>Emergency Contact No.</label>
               <input type="tel" name="phone" id="profilePhoneInput" maxlength="11" inputmode="numeric" placeholder="e.g. 09123456789" />
             </div>
             <div class="form-group">

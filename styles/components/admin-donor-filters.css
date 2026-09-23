@@ -1,24 +1,156 @@
+/* ── Donor Panel shell ─────────────────────────────────── */
 #donorPanel { width: 100%; min-width: 0; }
-#donorPanel .donor-directory-header { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 2px 0 14px; }
-#donorPanel .donor-directory-header h3 { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--gray-800); font-family: 'Sora', sans-serif; font-size: 1rem; }
+
+/* ── Header row: title left, Add Donor button right ────── */
+#donorPanel .donor-directory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0 12px;
+  gap: 12px;
+}
+#donorPanel .donor-directory-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--gray-800);
+  font-family: 'Sora', sans-serif;
+  font-size: 1rem;
+}
 #donorPanel .donor-directory-header h3 i { color: var(--blood-rich); font-size: .88rem; }
-#donorPanel .donor-filters { flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-#donorPanel .donor-filters label { display: grid; gap: 5px; font-size: .72rem; font-weight: 600; color: var(--gray-500); }
-#donorPanel .donor-filters select { min-height: 36px; padding: 7px 30px 7px 10px; border: 1px solid #f2d6d8; border-radius: 8px; background: #fff; color: #800000; font: inherit; font-size: .8rem; }
-#donorPanel .donor-filters select:focus-visible, #clearDonorFilters:focus-visible { outline: 2px solid #800000; outline-offset: 2px; }
-#clearDonorFilters { min-height: 36px; color: #800000; }
+
+/* Add Donor button inside the card header (styled like Add Stock / primary action button) */
+#donorPanel .donor-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm, 10px);
+  font-size: .82rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--blood-rich, #800000), var(--blood-mid, #9c1c1c));
+  color: var(--white, #fff);
+  transition: all var(--transition, 0.2s ease);
+  flex-shrink: 0;
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: 0 2px 10px rgba(139, 0, 0, .22);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+#donorPanel .donor-add-btn i {
+  font-size: .85rem;
+  color: inherit;
+}
+
+#donorPanel .donor-add-btn:hover {
+  background: linear-gradient(135deg, var(--blood-dark, #630000), var(--blood-rich, #800000));
+  box-shadow: 0 4px 18px rgba(139, 0, 0, .35);
+  transform: translateY(-1px);
+  color: var(--white, #fff);
+}
+
+#donorPanel .donor-add-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(139, 0, 0, .25);
+}
+
+/* ── Toolbar: "Showing X of Y" left, filters right ──────── */
+#donorPanel .donor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 7px 0 9px;
+  border-top: 1px solid var(--gray-200);
+}
+
+/* Count text */
+#donorPanel .donor-filter-summary {
+  margin: 0;
+  color: var(--gray-500);
+  font-size: .78rem;
+  line-height: 1;
+}
+
+/* ── Inline filter group ─────────────────────────────────── */
+#donorPanel .donor-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Labels are now inline (no stacked text above) */
+#donorPanel .donor-filters label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+
+#donorPanel .donor-filters select {
+  min-height: 30px;
+  padding: 4px 26px 4px 9px;
+  border: 1px solid #f2d6d8;
+  border-radius: 7px;
+  background: #fff;
+  color: #800000;
+  font: inherit;
+  font-size: .78rem;
+  cursor: pointer;
+}
+#donorPanel .donor-filters select:focus-visible,
+#clearDonorFilters:focus-visible { outline: 2px solid #800000; outline-offset: 2px; }
+
+#clearDonorFilters {
+  min-height: 30px;
+  padding: 4px 11px;
+  font-size: .76rem;
+  color: #800000;
+}
 #clearDonorFilters:disabled { opacity: .45; cursor: default; }
-#donorPanel .donor-filter-summary { margin: 0; padding: 9px 0; color: var(--gray-500); font-size: .78rem; border-top: 1px solid var(--gray-200); }
-#donorPanel .donor-table-wrap { width: 100%; overflow: visible; border-top: 1px solid var(--gray-200); }
-#donorTable { width: 100%; table-layout: fixed; }
-#donorTable th, #donorTable td { padding: 11px 8px; white-space: normal; vertical-align: middle; }
-#donorTable th:nth-child(1) { width: 26%; }
-#donorTable th:nth-child(2) { width: 8%; }
-#donorTable th:nth-child(3) { width: 17%; }
-#donorTable th:nth-child(4) { width: 14%; }
-#donorTable th:nth-child(5) { width: 12%; }
+
+/* ── Table ───────────────────────────────────────────────── */
+#donorPanel .donor-table-wrap {
+  width: 100%;
+  overflow: visible;
+  border-top: 1.5px solid var(--gray-200, #e5e7eb);
+}
+
+#donorTable { width: 100%; table-layout: fixed; border-collapse: collapse; }
+
+/* Header row */
+#donorTable thead tr {
+  border-bottom: 1.5px solid #d1d5db;
+}
+#donorTable th, #donorTable td {
+  padding: 11px 8px;
+  white-space: normal;
+  vertical-align: middle;
+}
+
+/* Visible row dividers */
+#donorTable tbody tr {
+  border-bottom: 1px solid #e2e4e8;
+}
+#donorTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+#donorTable th:nth-child(1) { width: 28%; }
+#donorTable th:nth-child(2) { width: 9%; }
+#donorTable th:nth-child(3) { width: 18%; }
+#donorTable th:nth-child(4) { width: 15%; }
+#donorTable th:nth-child(5) { width: 13%; }
 #donorTable th:nth-child(6) { width: 17%; }
-#donorTable th:nth-child(7) { width: 6%; }
+
 #donorTable .donor-cell { min-width: 0; }
 #donorTable .donor-cell > div:last-child { min-width: 0; }
 #donorTable .donor-name, #donorTable .donor-email { white-space: normal; overflow-wrap: anywhere; }
@@ -26,10 +158,160 @@
 #donorTable .donor-contact-cell, #donorTable .donor-donation-cell { line-height: 1.35; overflow-wrap: anywhere; }
 #donorTable .donor-contact-cell small, #donorTable .donor-donation-label { display: block; margin-top: 3px; color: var(--gray-400); font-size: .68rem; }
 #donorTable .donor-donation-cell .waiting-pill, #donorTable .donor-donation-cell .badge { margin-top: 4px; }
-#donorTable .btn-row-action { padding: 6px 8px; }
-@media (max-width: 600px) {
+
+/* Clickable rows - Darker neutral slate highlight (no light red/pink tint) with high text contrast */
+#donorTable tbody tr.donor-row {
+  cursor: pointer;
+  transition: background .18s ease, box-shadow .18s ease;
+}
+#donorTable tbody tr.donor-row:hover {
+  background: #e6ebf2;
+  box-shadow: inset 4px 0 0 var(--blood-rich, #800000);
+}
+#donorTable tbody tr.donor-row:focus-visible {
+  outline: 2px solid var(--blood-rich, #800000);
+  outline-offset: -2px;
+  background: #e6ebf2;
+}
+#donorTable tbody tr.donor-row:active {
+  background: #d8dfea;
+}
+
+/* ── Pagination bar ──────────────────────────────────────── */
+.donor-pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 8px 8px;
+  border-top: 1px solid var(--gray-100);
+}
+.donor-pagination-bar .donor-page-info {
+  font-size: .78rem;
+  color: var(--gray-500);
+  font-weight: 500;
+}
+.donor-pagination-bar .donor-show-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border: 1px solid #f2d6d8;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--blood-rich, #800000);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.donor-pagination-bar .donor-show-more-btn:hover {
+  background: var(--blood-mist, #fff5f5);
+  border-color: var(--blood-rich, #800000);
+  box-shadow: 0 2px 6px rgba(139,0,0,.1);
+}
+.donor-pagination-bar .donor-show-more-btn:disabled {
+  opacity: .4;
+  cursor: default;
+  box-shadow: none;
+}
+.donor-pagination-bar .donor-show-all-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gray-500);
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color .18s ease;
+}
+.donor-pagination-bar .donor-show-all-btn:hover {
+  color: var(--blood-rich, #800000);
+  text-decoration: underline;
+}
+
+/* ── Donor Profile Modal: Dark Maroon Card & High Contrast Inputs ── */
+.donor-profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 1px solid #5a0000;
+  background: linear-gradient(135deg, #420000 0%, #680000 50%, #800a0a 100%);
+  box-shadow: 0 4px 18px rgba(66, 0, 0, 0.28);
+}
+
+.donor-profile-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.donor-profile-identity h4 {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+  font-family: 'Sora', sans-serif;
+  letter-spacing: -0.2px;
+}
+
+.donor-profile-identity p {
+  margin: 4px 0 0;
+  font-size: .83rem;
+  font-weight: 600;
+  color: #ffd4d4;
+}
+
+/* Readonly fields & inputs inside the modal: high contrast & readability */
+.donor-profile-modal .form-group label {
+  font-size: .76rem;
+  font-weight: 700;
+  color: var(--gray-700, #374151);
+  margin-bottom: 5px;
+  display: block;
+}
+
+.donor-profile-modal .form-group input[readonly],
+.donor-profile-modal .form-group input {
+  background: #f8fafc;
+  color: #0f172a !important; /* Deep dark slate text - 100% crystal readable */
+  font-weight: 600;
+  font-size: .84rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.donor-profile-modal .map-toggle-row {
+  border: 1px solid #cbd5e1;
+}
+
+.donor-profile-modal .modal-body {
+  scrollbar-color: rgba(100, 0, 0, .45) transparent;
+}
+.donor-profile-modal .modal-body::-webkit-scrollbar-thumb {
+  background: rgba(100, 0, 0, .45);
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+  #donorPanel .donor-toolbar { flex-direction: column; align-items: flex-start; }
   #donorPanel .donor-filters { width: 100%; }
   #donorPanel .donor-filters label { flex: 1 1 140px; }
-  #donorPanel .donor-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0; padding: 0; }
-  #donorTable { min-width: 760px; width: 760px; table-layout: fixed; }
+  #donorPanel .donor-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #donorTable { min-width: 680px; width: 680px; table-layout: fixed; }
 }

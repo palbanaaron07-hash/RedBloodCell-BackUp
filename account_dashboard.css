@@ -368,6 +368,7 @@ button {
 }
 
 .sidebar-logout {
+  display: none;
   color: rgba(255, 255, 255, .35);
   font-size: .85rem;
   padding: 6px;
@@ -4333,7 +4334,15 @@ html[data-initial-section="help"] #section-help {
   .sidebar.open .nav-section-title,
   .sidebar.open .nav-item-label,
   .sidebar.open .nav-badge,
-  .sidebar.open .sidebar-footer-info,
+  .sidebar.open .sidebar-footer-info {
+    opacity: 1;
+  }
+
+  .sidebar-logout {
+    display: flex;
+    opacity: 0;
+  }
+
   .sidebar.open .sidebar-logout {
     opacity: 1;
   }
@@ -6154,4 +6163,72 @@ html[data-initial-section="help"] #section-help {
 .form-group textarea.is-invalid {
   border-color: var(--accent, #800000) !important;
   box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.12) !important;
+}
+
+.patient-supporting-docs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 8px;
+}
+.patient-doc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #ebd8db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #493438;
+  text-decoration: none;
+  transition: all .15s ease;
+}
+.patient-doc-card:hover {
+  background: #fff5f6;
+  border-color: #800000;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(128, 0, 0, 0.08);
+}
+.patient-doc-card i:first-child {
+  font-size: 1.1rem;
+  color: #800000;
+  flex-shrink: 0;
+}
+.patient-doc-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.patient-doc-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #493438;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.patient-doc-size {
+  font-size: 0.68rem;
+  color: #8c7376;
+}
+.patient-doc-open-icon {
+  font-size: 0.75rem;
+  color: #800000;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.patient-doc-card:hover .patient-doc-open-icon {
+  opacity: 1;
+}
+.patient-doc-item--loading {
+  background: #faf4f5;
+  border-style: dashed;
+  color: #8c7376;
+  font-size: 0.74rem;
+}
+.patient-doc-item--disabled {
+  background: #f8f8f8;
+  border-color: #e5e5e5;
+  color: #9a8588;
 }

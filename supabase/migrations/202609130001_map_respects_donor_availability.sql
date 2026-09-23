@@ -18,7 +18,7 @@ as $$
     and lower(coalesce(d.location_status, '')) = 'verified'
     and nullif(trim(d.map_area), '') is not null
     and lower(coalesce(d.donor_status, '')) in ('approved', 'donated')
-    and (d.last_donation_date is null or d.last_donation_date <= current_date - 56)
+    and (d.last_donation_date is null or d.last_donation_date <= current_date - 90)
   order by d.donor_id;
 $$;
 revoke all on function blood_bank.list_visible_donors() from public;

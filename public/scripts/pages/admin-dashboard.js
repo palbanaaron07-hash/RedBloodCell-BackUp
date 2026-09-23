@@ -40,6 +40,11 @@ let latestOverviewStats = null;
 let pendingUrgentRefreshPromise = null;
 let donorCache = [];
 let requestFilter = 'all';
+let requestStatusFilterValue = 'all';
+let requestBloodTypeFilterValue = 'all';
+let requestTypeFilterValue = 'all';
+let requestsPageSize = 10;
+let requestsVisibleCount = 10;
 let currentAdminContext = { userId: '', email: '', fullName: '' };
 let requestTransitionState = { requestId: null, targetStatus: '', oldStatus: '' };
 let reportsTrendPeriod = 'month';
@@ -110,6 +115,7 @@ function applySearchToVisibleSection() {
     return;
   }
   if (activeSection === 'donors') {
+    donorVisibleCount = donorPageSize;
     renderDonorRows();
     return;
   }
@@ -1565,7 +1571,6 @@ function initBloodDrivesRealtime() {
 function getReportsSnapshot() {
   const requests = Array.isArray(requestsSectionCache) ? requestsSectionCache : [];
   const donors = Array.isArray(donorCache) ? donorCache : [];
-  const compatibleTypes = RED_CELL_COMPATIBILITY[neededType] || [neededType];
   const inventoryRows = getInventoryRowsWithAllTypes();
   const statusCounts = {
     pending: 0,
@@ -1621,48 +1626,43 @@ function getSimplifiedRequestStatusRows(statusCounts) {
 async function refreshReportsSection() {
   if (reportsRefreshPromise) return reportsRefreshPromise;
 
-  const exportButton = document.getElementById('exportReportsBtn');
   const exportStatus = document.getElementById('reportsExportStatus');
-  if (exportButton) exportButton.disabled = true;
-  if (exportStatus) exportStatus.textContent = 'Refreshing report data...';
 
   reportsRefreshPromise = (async () => {
     const [donorsResult, requestsResult, inventoryResult, trendPayload] = await Promise.all([
-      listDonors(),
-      getOverviewRecentRequests(1000),
-      getInventoryDashboardData(),
-      refreshReportsTrendChart()
+      listDonors().catch((err) => ({ error: err })),
+      getOverviewRecentRequests(1000).catch((err) => ({ error: err })),
+      getInventoryDashboardData().catch((err) => ({ error: err })),
+      refreshReportsTrendChart().catch(() => null)
     ]);
 
     const errors = [];
-    if (donorsResult?.error) errors.push(donorsResult.error.message || 'donors');
+    if (donorsResult?.error) errors.push(donorsResult.error?.message || 'donors');
     else if (Array.isArray(donorsResult?.data)) donorCache = donorsResult.data;
 
-    if (requestsResult?.error) errors.push(requestsResult.error.message || 'requests');
+    if (requestsResult?.error) errors.push(requestsResult.error?.message || 'requests');
     else if (Array.isArray(requestsResult?.data)) requestsSectionCache = requestsResult.data;
 
-    if (inventoryResult?.error) errors.push(inventoryResult.error.message || 'inventory');
+    if (inventoryResult?.error) errors.push(inventoryResult.error?.message || 'inventory');
     else if (Array.isArray(inventoryResult?.data?.by_type)) inventoryByTypeCache = inventoryResult.data.by_type;
 
     renderReportsSection();
     if (reportsTrendChart) requestAnimationFrame(() => reportsTrendChart.resize());
 
-    if (errors.length) {
-      if (exportStatus) exportStatus.textContent = 'Some report data could not be refreshed.';
-      console.error('Reports refresh completed with errors:', errors);
-      return false;
-    }
-
     if (trendPayload) reportsTrendPayload = trendPayload;
-    if (exportStatus) exportStatus.textContent = '';
+
+    if (exportStatus && (exportStatus.textContent === 'Refreshing report data...' || exportStatus.textContent === 'Updating data before export...')) {
+      exportStatus.textContent = '';
+    }
     return true;
   })().catch((error) => {
     console.error('Failed to refresh reports:', error);
-    if (exportStatus) exportStatus.textContent = 'Could not refresh report data.';
     return false;
   }).finally(() => {
     reportsRefreshPromise = null;
-    if (exportButton) exportButton.disabled = false;
+    if (exportStatus && (exportStatus.textContent === 'Refreshing report data...' || exportStatus.textContent === 'Updating data before export...')) {
+      exportStatus.textContent = '';
+    }
   });
 
   return reportsRefreshPromise;
@@ -1942,10 +1942,14 @@ function renderReportsSection() {
   const inventoryBody = document.getElementById('reportsInventoryBreakdownBody');
   if (!requestBody || !inventoryBody) return;
 
+  const exportStatus = document.getElementById('reportsExportStatus');
+  if (exportStatus && (exportStatus.textContent === 'Refreshing report data...' || exportStatus.textContent === 'Updating data before export...')) {
+    exportStatus.textContent = '';
+  }
+
   const query = getSearchQuery();
   const requests = Array.isArray(requestsSectionCache) ? requestsSectionCache : [];
   const donors = Array.isArray(donorCache) ? donorCache : [];
-  const compatibleTypes = RED_CELL_COMPATIBILITY[neededType] || [neededType];
   const inventoryRows = getInventoryRowsWithAllTypes();
 
   const statusCounts = {
@@ -2156,7 +2160,10 @@ const RED_CELL_COMPATIBILITY = {
 
 function getTransitionReasonOptions(targetStatus, request = null) {
   if (targetStatus === 'approved') {
-    const hasUploadedDocument = Boolean(request?.verification_support?.storage_path);
+    const hasUploadedDocument = Boolean(
+      request?.verification_support?.storage_path ||
+      (Array.isArray(request?.supporting_documents) && request.supporting_documents.length > 0)
+    );
     return [
       { value: 'uploaded_document', label: 'Uploaded supporting document reviewed', disabled: !hasUploadedDocument },
       { value: 'physical_document', label: 'Physical document reviewed in person' },
@@ -3035,39 +3042,56 @@ function openRequestStatusModal(requestId, targetStatus) {
   document.getElementById('requestStatusRequestId').textContent = `#${requestId}`;
   const isVerification = targetStatus === 'approved';
   const isClosing = targetStatus === 'fulfilled';
+  const isRejection = targetStatus === 'rejected';
   document.getElementById('requestStatusModalTitle').textContent = isVerification
     ? 'Verify Blood Request'
     : isClosing
-      ? 'Close Blood Request Coordination'
-      : 'Change Request Status';
+      ? 'Fulfill Blood Request'
+      : isRejection
+        ? 'Reject Blood Request'
+        : 'Change Request Status';
   document.getElementById('requestStatusTransitionLabel').textContent = isVerification
     ? 'Result'
     : isClosing
       ? 'Final Status'
-      : 'Transition';
+      : isRejection
+        ? 'Action'
+        : 'Transition';
   document.getElementById('requestStatusTransition').value = isVerification
-    ? 'Pending verification → Verified and published'
+    ? 'Pending review → Verified and approved'
     : isClosing
-      ? 'Approved / Active → Fulfilled (Coordination Closed)'
-      : `${oldStatus.replace('_', ' ')} → ${targetStatus.replace('_', ' ')}`;
+      ? 'Approved → Fulfilled'
+      : isRejection
+        ? `${oldStatus.replace('_', ' ')} → Rejected`
+        : `${oldStatus.replace('_', ' ')} → ${targetStatus.replace('_', ' ')}`;
   document.getElementById('requestStatusReasonLabel').textContent = isVerification
     ? 'Verification basis'
     : isClosing
       ? 'Closure basis'
-      : 'Reason';
+      : isRejection
+        ? 'Rejection reason'
+        : 'Reason';
   document.getElementById('requestStatusReasonHelp').textContent = isVerification
-    ? 'Choose the evidence you personally reviewed before publishing this request.'
+    ? 'Choose the evidence you personally reviewed before approving this private request.'
     : isClosing
       ? 'Select the fulfillment or verification source used to close this request.'
-      : '';
-  document.getElementById('requestStatusSubmit').innerHTML = isVerification
-    ? '<i class="fa-solid fa-shield-heart"></i> Verify and Publish Request'
-    : isClosing
-      ? '<i class="fa-solid fa-circle-check"></i> Confirm & Close Coordination'
-      : '<i class="fa-solid fa-check"></i> Confirm Change';
+      : isRejection
+        ? 'Select the verified reason for declining this request.'
+        : '';
+  const submitBtn = document.getElementById('requestStatusSubmit');
+  if (submitBtn) {
+    submitBtn.className = isRejection ? 'btn-submit btn-danger' : 'btn-submit';
+    submitBtn.innerHTML = isVerification
+      ? '<i class="fa-solid fa-shield-heart"></i> Verify and Approve Request'
+      : isClosing
+        ? '<i class="fa-solid fa-circle-check"></i> Confirm Fulfillment'
+        : isRejection
+          ? '<i class="fa-solid fa-ban"></i> Confirm Rejection'
+          : '<i class="fa-solid fa-check"></i> Confirm Change';
+  }
 
   const reasonSelect = document.getElementById('requestStatusReason');
-  reasonSelect.innerHTML = `<option value="">${isVerification ? 'Select verification basis' : 'Select a reason'}</option>` +
+  reasonSelect.innerHTML = `<option value="">${isVerification ? 'Select verification basis' : isRejection ? 'Select rejection reason' : 'Select a reason'}</option>` +
     getTransitionReasonOptions(targetStatus, request)
       .map((option) => `<option value="${escapeHtml(option.value)}"${option.disabled ? ' disabled' : ''}>${escapeHtml(option.label)}${option.disabled ? ' (no upload)' : ''}</option>`)
       .join('');
@@ -3177,8 +3201,8 @@ async function submitRequestStatusTransition(event) {
   const fulfilledMessage = targetStatus === 'fulfilled'
     ? (row.request_type === 'replacement'
       ? 'Replacement completed from authorized-facility confirmation. No hospital inventory was deducted.'
-      : 'Donation coordination case completed. No hospital inventory was deducted.')
-    : (targetStatus === 'approved' ? 'Request verified by the coordinator and released for donor coordination.' : 'Request status updated successfully.');
+      : 'Blood request completed by the blood bank admin.')
+    : (targetStatus === 'approved' ? 'Request verified and approved for private blood bank processing.' : 'Request status updated successfully.');
 
   setRequestStatusMsg(fulfilledMessage, 'success');
   await refreshRequestsSection();
@@ -3308,6 +3332,74 @@ const VERIFICATION_BASIS_LABELS = {
   other: 'Other documented verification'
 };
 
+function formatDocFileSize(bytes) {
+  if (!bytes || Number.isNaN(bytes)) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getRequestAllDocuments(row) {
+  const docs = Array.isArray(row?.supporting_documents) ? [...row.supporting_documents] : [];
+  if (row?.verification_support?.storage_path) {
+    const exists = docs.some((d) => d.storage_path === row.verification_support.storage_path);
+    if (!exists) {
+      docs.unshift({
+        storage_path: row.verification_support.storage_path,
+        file_name: row.verification_support.file_name || 'supporting-document',
+        mime_type: row.verification_support.mime_type,
+        file_size: row.verification_support.file_size
+      });
+    }
+  }
+  return docs;
+}
+
+async function prepareAdminRequestDocuments(documents) {
+  const container = document.getElementById('adminSupportingDocsList');
+  if (!container || !Array.isArray(documents) || !documents.length) return;
+
+  const results = await Promise.all(
+    documents.map(async (doc) => {
+      const { data, error } = await createRequestDocumentSignedUrl(doc.storage_path);
+      return {
+        doc,
+        url: error ? null : data?.signedUrl
+      };
+    })
+  );
+
+  if (!document.body.contains(container)) return;
+
+  container.innerHTML = results
+    .map(({ doc, url }) => {
+      const fileName = doc.file_name || 'supporting-document';
+      const ext = (fileName || '').split('.').pop().toLowerCase();
+      const iconClass = ext === 'pdf' ? 'fa-file-pdf' : (['jpg', 'jpeg', 'png'].includes(ext) ? 'fa-file-image' : 'fa-file-shield');
+      const sizeStr = doc.file_size ? formatDocFileSize(doc.file_size) : '';
+      if (!url) {
+        return `<div class="request-doc-item request-doc-item--disabled">
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+          <div class="request-doc-info">
+            <span class="request-doc-name">${escapeHtml(fileName)}</span>
+            <span class="request-doc-meta">${sizeStr ? `${sizeStr} · ` : ''}Unavailable</span>
+          </div>
+        </div>`;
+      }
+      return `<a class="request-doc-item request-doc-card" href="${url}" target="_blank" rel="noopener noreferrer" title="Open ${escapeHtml(fileName)}">
+        <div class="request-doc-icon-wrap">
+          <i class="fa-solid ${iconClass}" aria-hidden="true"></i>
+        </div>
+        <div class="request-doc-info">
+          <span class="request-doc-name">${escapeHtml(fileName)}</span>
+          <span class="request-doc-meta">${sizeStr ? `${sizeStr} · ` : ''}Click to open</span>
+        </div>
+        <i class="fa-solid fa-arrow-up-right-from-square request-doc-open-icon" aria-hidden="true"></i>
+      </a>`;
+    })
+    .join('');
+}
+
 async function prepareAdminRequestDocument(storagePath, fileName) {
   const link = document.getElementById('adminRequestDocumentLink');
   if (!link || typeof createRequestDocumentSignedUrl !== 'function') return;
@@ -3325,6 +3417,35 @@ async function prepareAdminRequestDocument(storagePath, fileName) {
   link.innerHTML = `<i class="fa-solid fa-file-shield" aria-hidden="true"></i> View ${escapeHtml(fileName || 'supporting document')}`;
 }
 
+function renderAdminPrivateSupportSection(row) {
+  const verificationSupport = row?.verification_support || null;
+  const verificationBasis = VERIFICATION_BASIS_LABELS[verificationSupport?.verification_method]
+    || (row?.verification_status === 'verified' ? 'Coordinator verification recorded before evidence tracking' : 'Pending coordinator review');
+  const allDocs = getRequestAllDocuments(row);
+  return `<section class="request-private-support" id="adminPrivateSupportSection">
+      <h4><i class="fa-solid fa-lock" aria-hidden="true"></i> Private verification support</h4>
+      <p>Visible only to the requester and authorized Blood Donation Coordinators.</p>
+      <div class="request-private-support-grid">
+        <div class="request-private-support-item"><span>Facility contact</span><strong>${escapeHtml(verificationSupport?.facility_contact || 'Not provided')}</strong></div>
+        <div class="request-private-support-item"><span>Hospital / replacement reference</span><strong>${escapeHtml(row?.hospital_reference || 'Not provided')}</strong></div>
+        <div class="request-private-support-item"><span>Verification basis</span><strong>${escapeHtml(verificationBasis)}</strong></div>
+        <div class="request-private-support-item"><span>Verified by</span><strong>${escapeHtml(verificationSupport?.verified_by_email || (verificationSupport?.verified_at ? 'Blood Donation Coordinator' : 'Not yet verified'))}</strong></div>
+        <div class="request-private-support-item"><span>Verified on</span><strong>${verificationSupport?.verified_at ? escapeHtml(formatDateShort(verificationSupport.verified_at)) : 'Not yet verified'}</strong></div>
+      </div>
+      ${verificationSupport?.verification_note ? `<div class="request-private-support-item" style="margin-top:10px;"><span>Coordinator verification note</span><strong>${escapeHtml(verificationSupport.verification_note)}</strong></div>` : ''}
+      <div class="request-documents-section" style="margin-top:14px;">
+        <h5 style="margin:0 0 8px;font-size:0.875rem;font-weight:700;color:#374151;">
+          <i class="fa-solid fa-paperclip" aria-hidden="true"></i> Attached Supporting Documents (${allDocs.length})
+        </h5>
+        ${allDocs.length > 0
+          ? `<div id="adminSupportingDocsList" class="request-docs-grid">
+              ${allDocs.map((d) => `<div class="request-doc-item request-doc-item--loading"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Preparing ${escapeHtml(d.file_name || 'document')}...</span></div>`).join('')}
+            </div>`
+          : '<p style="margin:0;color:#6b7280;font-size:0.875rem;"><i class="fa-solid fa-file-circle-xmark" aria-hidden="true"></i> No supporting documents attached.</p>'}
+      </div>
+    </section>`;
+}
+
 function openAdminRequestDetails(requestId) {
   const row = requestsSectionCache.find((item) => Number(item.request_id || item.id) === Number(requestId));
   if (!row) return;
@@ -3335,7 +3456,7 @@ function openAdminRequestDetails(requestId) {
   if (!modal || !body) return;
 
   const patient = Array.isArray(row.patient) ? row.patient[0] : row.patient;
-  const firstName = patient?.first_name || 'Community';
+  const firstName = patient?.first_name || 'Blood Bank';
   const middleName = patient?.middle_name || '';
   const lastName = patient?.last_name || 'Recipient';
   const patientName = [firstName, middleName, lastName].filter(Boolean).join(' ');
@@ -3367,23 +3488,7 @@ function openAdminRequestDetails(requestId) {
     .replace(/\[Community Crowdsourced\]/gi, '')
     .trim() || 'No description provided.';
   const verificationSupport = row.verification_support || null;
-  const verificationBasis = VERIFICATION_BASIS_LABELS[verificationSupport?.verification_method]
-    || (row.verification_status === 'verified' ? 'Coordinator verification recorded before evidence tracking' : 'Pending coordinator review');
-  const privateSupportSection = `<section class="request-private-support">
-      <h4><i class="fa-solid fa-lock" aria-hidden="true"></i> Private verification support</h4>
-      <p>Visible only to the requester and authorized Blood Donation Coordinators.</p>
-      <div class="request-private-support-grid">
-        <div class="request-private-support-item"><span>Facility contact</span><strong>${escapeHtml(verificationSupport?.facility_contact || 'Not provided')}</strong></div>
-        <div class="request-private-support-item"><span>Hospital / replacement reference</span><strong>${escapeHtml(row.hospital_reference || 'Not provided')}</strong></div>
-        <div class="request-private-support-item"><span>Verification basis</span><strong>${escapeHtml(verificationBasis)}</strong></div>
-        <div class="request-private-support-item"><span>Verified by</span><strong>${escapeHtml(verificationSupport?.verified_by_email || (verificationSupport?.verified_at ? 'Blood Donation Coordinator' : 'Not yet verified'))}</strong></div>
-        <div class="request-private-support-item"><span>Verified on</span><strong>${verificationSupport?.verified_at ? escapeHtml(formatDateShort(verificationSupport.verified_at)) : 'Not yet verified'}</strong></div>
-      </div>
-      ${verificationSupport?.verification_note ? `<div class="request-private-support-item" style="margin-top:10px;"><span>Coordinator verification note</span><strong>${escapeHtml(verificationSupport.verification_note)}</strong></div>` : ''}
-      ${verificationSupport?.storage_path
-        ? `<a id="adminRequestDocumentLink" class="request-document-link" href="#" aria-disabled="true"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Preparing ${escapeHtml(verificationSupport.file_name || 'supporting document')}...</a>`
-        : '<p style="margin-top:12px;margin-bottom:0;">No supporting document attached.</p>'}
-    </section>`;
+  const privateSupportSection = renderAdminPrivateSupportSection(row);
   const pledgeStatusLabels = {
     pledged: 'Active pledge',
     request_fulfilled: 'Request fulfilled',
@@ -3422,14 +3527,13 @@ function openAdminRequestDetails(requestId) {
     </section>
     <div class="request-detail-grid">
       <div class="request-detail-field"><span><i class="fa-solid fa-user" aria-hidden="true"></i>Requester</span><strong>${escapeHtml(patientName)}</strong></div>
-      <div class="request-detail-field"><span><i class="fa-solid fa-phone" aria-hidden="true"></i>Contact</span><strong>${escapeHtml(phone)}</strong></div>
+      <div class="request-detail-field"><span><i class="fa-solid fa-phone" aria-hidden="true"></i>Emergency Contact No.</span><strong>${escapeHtml(phone)}</strong></div>
       <div class="request-detail-field"><span><i class="fa-solid fa-hospital" aria-hidden="true"></i>Location / Hospital</span><strong>${escapeHtml(hospital)}</strong></div>
       <div class="request-detail-field"><span><i class="fa-solid fa-file-medical" aria-hidden="true"></i>Request type</span><strong>${row.request_type === 'replacement' ? 'Hospital replacement' : 'Blood request'}</strong></div>
       <div class="request-detail-field request-detail-field--wide"><span><i class="fa-regular fa-clock" aria-hidden="true"></i>Needed time</span><strong>${escapeHtml(neededTimeDisplay)}</strong></div>
     </div>
     <section class="request-detail-notes"><h4>Description / Notes</h4><p>${escapeHtml(descriptionNotes)}</p></section>
-    ${emergencyPledgeSection}
-    ${privateSupportSection}
+    <div id="adminPrivateSupportContainer">${privateSupportSection}</div>
     ${row.request_type === 'replacement' ? `<section class="replacement-progress-panel">
       <h4>Facility-confirmed replacement donations</h4>
       <div class="replacement-progress-count">${Number((Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : row.replacement_campaign)?.confirmed_units || 0)} of ${Number((Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : row.replacement_campaign)?.target_units || units)} units confirmed</div>
@@ -3437,21 +3541,72 @@ function openAdminRequestDetails(requestId) {
     </section>` : ''}
   `;
   if (actions) {
-    const expired = getCommunityLifecycleInfo(row).status === 'expired';
-    const canMobilize = !expired && getCommunityLifecycleInfo(row).status === 'active' && status === 'approved' && row.verification_status === 'verified';
     actions.innerHTML = `
-          ${canMobilize ? `<button type="button" class="btn-primary request-detail-action request-detail-action--notify" onclick="closeAdminRequestDetailModal(); openMobilizeDonorsModal(${Number(row.request_id || row.id)})"><i class="fa-solid fa-bullhorn"></i> Notify Eligible Donors</button>` : ''}
-          ${status === 'pending' && !expired ? `<button type="button" class="btn-verify-request" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'approved')"><i class="fa-solid fa-pen-to-square"></i> Verify Request</button>` : ''}
-          ${row.request_type === 'replacement' && row.verification_status === 'verified' && status !== 'fulfilled' ? `<button type="button" class="btn-primary request-detail-action request-detail-action--record" onclick="closeAdminRequestDetailModal(); openReplacementDonationModal(${Number(row.request_id || row.id)})"><i class="fa-solid fa-clipboard-check"></i> Record Replacement Donation</button>` : ''}
-          ${row.request_type !== 'replacement' && !expired && status === 'approved' ? `<button type="button" class="btn-close-coordination request-detail-action request-detail-action--complete" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'fulfilled')"><i class="fa-solid fa-circle-check"></i> Close Coordination</button>` : ''}
-          ${expired ? (row.request_type === 'replacement' && row.verification_status === 'verified' ? '<p style="color:#64748b;font-size:.85rem;">Public recruitment has expired. Facility-confirmed replacement donations can still be recorded.</p>' : '<p style="color:#64748b;font-size:.85rem;">Expired request - history only. The recipient must submit a new request if blood is still needed.</p>') : ''}
+          ${status === 'pending' ? `
+            <button type="button" class="btn-verify-request" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'approved')"><i class="fa-solid fa-pen-to-square"></i> Verify Request</button>
+            <button type="button" class="btn-reject-request" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'rejected')"><i class="fa-solid fa-ban"></i> Reject Request</button>
+          ` : ''}
+          ${row.request_type === 'replacement' && row.verification_status === 'verified' && status !== 'fulfilled' ? `
+            <button type="button" class="btn-primary request-detail-action request-detail-action--record" onclick="closeAdminRequestDetailModal(); openReplacementDonationModal(${Number(row.request_id || row.id)})"><i class="fa-solid fa-clipboard-check"></i> Record Replacement Donation</button>
+          ` : ''}
+          ${row.request_type !== 'replacement' && status === 'approved' ? `
+            <button type="button" class="btn-close-coordination request-detail-action request-detail-action--complete" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'fulfilled')"><i class="fa-solid fa-circle-check"></i> Mark Fulfilled</button>
+            <button type="button" class="btn-reject-request" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'rejected')"><i class="fa-solid fa-ban"></i> Reject / Cancel</button>
+          ` : ''}
         `;
   }
 
   modal.classList.add('active');
-  if (verificationSupport?.storage_path) {
-    prepareAdminRequestDocument(verificationSupport.storage_path, verificationSupport.file_name);
+  const initialDocs = getRequestAllDocuments(row);
+  if (initialDocs.length) {
+    prepareAdminRequestDocuments(initialDocs);
   }
+
+  // Asynchronously fetch fresh verification support and documents to guarantee live state
+  const reqTargetId = Number(row.request_id || row.id);
+  if (Number.isInteger(reqTargetId) && reqTargetId > 0) {
+    const fetchPromises = [];
+    if (typeof listRequestVerificationSupport === 'function') {
+      fetchPromises.push(listRequestVerificationSupport([reqTargetId]));
+    } else {
+      fetchPromises.push(Promise.resolve({ data: [] }));
+    }
+    if (typeof listRequestSupportingDocuments === 'function') {
+      fetchPromises.push(listRequestSupportingDocuments([reqTargetId]));
+    } else {
+      fetchPromises.push(Promise.resolve({ data: [] }));
+    }
+
+    Promise.all(fetchPromises).then(([supportRes, docsRes]) => {
+      const freshSupport = supportRes?.data?.[0] || null;
+      const freshDocs = docsRes?.data || [];
+
+      // Always update row with fresh data from live fetch (overwrite cache state)
+      row.verification_support = freshSupport !== null ? freshSupport : (row.verification_support || null);
+      row.supporting_documents = freshDocs.length > 0 ? freshDocs : (row.supporting_documents || []);
+
+      const updateCache = (cache) => {
+        const item = cache.find((it) => Number(it.request_id || it.id) === reqTargetId);
+        if (item) {
+          item.verification_support = row.verification_support;
+          item.supporting_documents = row.supporting_documents;
+        }
+      };
+      updateCache(requestsSectionCache);
+      updateCache(overviewRequestsCache);
+
+      // Always re-render the private support section with latest data
+      const container = document.getElementById('adminPrivateSupportContainer');
+      if (container && modal.classList.contains('active')) {
+        container.innerHTML = renderAdminPrivateSupportSection(row);
+        const currentDocs = getRequestAllDocuments(row);
+        if (currentDocs.length) {
+          prepareAdminRequestDocuments(currentDocs);
+        }
+      }
+    }).catch(() => {});
+  }
+
   if (row.request_type === 'replacement') loadReplacementConfirmationHistory(Number(row.request_id || row.id));
 }
 window.openAdminRequestDetails = openAdminRequestDetails;
@@ -3466,15 +3621,24 @@ function renderRequestsSection() {
   const list = document.getElementById('requestsSectionList');
   if (!list) return;
 
-  const isCommunityRow = (row) => {
-    const note = String(row.note || row.notes || row.description || '');
-    return note.includes('[Community Crowdsourced]') || note.includes('Community') || Boolean(row.requester_name);
-  };
-
   const query = getSearchQuery();
   const rows = requestsSectionCache.filter((row) => {
     const status = normalizeRequestStatus(row.status);
-    if (requestFilter !== 'all' && status !== requestFilter) {
+    if (requestStatusFilterValue !== 'all' && status !== requestStatusFilterValue) {
+      return false;
+    }
+
+    const bloodType = normalizeBloodType(row.blood_type_needed || row.blood_type || '');
+    if (requestBloodTypeFilterValue !== 'all' && bloodType !== requestBloodTypeFilterValue) {
+      return false;
+    }
+
+    const isReplacement = row.request_type === 'replacement';
+    const isEmergencyDonor = row.request_type === 'emergency_donor';
+    if (requestTypeFilterValue === 'replacement' && !isReplacement) {
+      return false;
+    }
+    if (requestTypeFilterValue === 'emergency_donor' && !isEmergencyDonor) {
       return false;
     }
 
@@ -3494,15 +3658,29 @@ function renderRequestsSection() {
     ], query);
   });
 
+  const summary = document.getElementById('requestsFilterSummary');
+  if (summary) {
+    summary.textContent = `Showing ${Math.min(requestsVisibleCount, rows.length)} of ${rows.length} requests${requestsSectionCache.length !== rows.length ? ` (${requestsSectionCache.length} total)` : ''}`;
+  }
+
+  const clearButton = document.getElementById('clearRequestFilters');
+  if (clearButton) {
+    clearButton.disabled = requestStatusFilterValue === 'all' && requestBloodTypeFilterValue === 'all' && requestTypeFilterValue === 'all' && !query;
+  }
+
   if (!rows.length) {
-    list.innerHTML = '<div style="text-align:center;color:var(--slate-400);padding:24px 12px;">No blood requests available.</div>';
+    const message = requestsSectionCache.length ? 'No blood requests match these filters.' : 'No blood requests available.';
+    list.innerHTML = `<div style="text-align:center;color:var(--slate-400);padding:32px 12px;">${message}</div>`;
+    updateRequestsPagination(0, 0);
     return;
   }
 
-  list.innerHTML = rows.map((row) => {
+  const visible = rows.slice(0, requestsVisibleCount);
+
+  list.innerHTML = visible.map((row) => {
     const reqId = row.request_id || row.id;
     const patient = Array.isArray(row.patient) ? row.patient[0] : row.patient;
-    const firstName = patient?.first_name || 'Community';
+    const firstName = patient?.first_name || 'Blood Bank';
     const middleName = patient?.middle_name || '';
     const lastName = patient?.last_name || 'Patient';
     const patientName = [firstName, middleName, lastName].filter(Boolean).join(' ');
@@ -3510,62 +3688,96 @@ function renderRequestsSection() {
     const bloodType = normalizeBloodType(row.blood_type_needed || row.blood_type || 'O+');
     const units = Number(row.quantity || row.units_needed || 1);
     const status = normalizeRequestStatus(row.status);
-    const statusBadge = getCommunityLifecycleInfo(row).status === 'expired' ? { className: 'rejected', label: 'Expired' } : getRequestStatusInfo(status);
+    const statusBadge = getRequestStatusInfo(status);
     const isUrgent = isUrgentRequest(row);
-    const urgencyStr = isUrgent ? 'Urgent' : 'Normal';
     const securedBags = Number(row.bags_secured ?? (status === 'fulfilled' ? units : (status === 'processing' ? Math.min(units, 1) : 0)));
     const campaign = Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : row.replacement_campaign;
     const isReplacement = row.request_type === 'replacement';
     const isEmergencyDonor = row.request_type === 'emergency_donor';
     const pledges = Array.isArray(row.pledges) ? row.pledges : [];
-    const activePledgedUnits = pledges
-      .filter((pledge) => ['pledged', 'request_fulfilled', 'recipient_confirmed'].includes(String(pledge.status).toLowerCase()))
-      .reduce((total, pledge) => total + Number(pledge.units_pledged || 1), 0);
     const statusSummaryStr = isReplacement
       ? `${Number(campaign?.pledged_units || 0)}/${Number(campaign?.target_units || units)} pledged · ${Number(campaign?.confirmed_units || 0)}/${Number(campaign?.target_units || units)} confirmed`
       : isEmergencyDonor
-        ? `${activePledgedUnits}/${units} donors pledged`
+        ? 'Private admin processing'
         : `${securedBags}/${units} donor${units !== 1 ? 's' : ''} requested`;
-    const communityLifecycle = getCommunityLifecycleInfo(row);
 
-    const mobilizeBtn = communityLifecycle.status === 'active' && status === 'approved' && row.verification_status === 'verified'
-      ? `<button type="button" class="btn-row-action" style="margin-right:6px;background:rgba(128,0,0,0.06);color:var(--accent,#800000);border:1px solid rgba(128,0,0,0.18);padding:5px 10px;border-radius:6px;font-weight:700;font-size:0.75rem;" onclick="openMobilizeDonorsModal(${Number(reqId)})" title="Notify eligible donors with an in-app appeal"><i class="fa-solid fa-bell"></i> Notify Donors</button>`
-      : '';
-
-    const urgencyChipStyle = isUrgent
-      ? 'background:#fff1f2;color:#be123c;border:1px solid #fecdd3;'
-      : 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;';
-
-    return `<div class="request-card" style="flex-wrap:wrap; gap:12px;">
-          <div class="request-type">${isReplacement ? '<i class="fa-solid fa-rotate" aria-hidden="true"></i>' : escapeHtml(bloodType)}</div>
-          <div class="request-info" style="flex:1; min-width:200px;">
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:5px;">
-              <strong style="font-size:0.88rem; color:#1e293b;">Request #${escapeHtml(String(reqId))}</strong>
-              ${communityLifecycle.status === 'expired'
-                ? '<span class="badge rejected">Expired</span>'
-                : `<span class="badge ${statusBadge.className}">${statusBadge.label}</span>${communityLifecycle.status === 'covered' ? '<span class="badge approved">Donors Pledged</span>' : ''}`}
+    return `<div class="request-card request-row-clickable" tabindex="0" role="button" onclick="openAdminRequestDetails(${Number(reqId)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openAdminRequestDetails(${Number(reqId)});}" title="Click to view request details">
+          <div class="request-type ${isReplacement ? 'type-replacement' : ''}">
+            ${isReplacement ? '<i class="fa-solid fa-rotate" aria-hidden="true"></i>' : escapeHtml(bloodType)}
+          </div>
+          <div class="request-info">
+            <div class="request-header-line" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:5px;">
+              <strong class="request-title">Request #${escapeHtml(String(reqId))}</strong>
+              <span class="badge ${statusBadge.className}">${statusBadge.label}</span>
+              ${isUrgent ? '<span class="badge urgent" style="font-size:0.68rem;"><i class="fa-solid fa-bolt"></i> Urgent</span>' : ''}
             </div>
-            ${isReplacement || isEmergencyDonor ? `<p style="font-size:.78rem;color:#64748b;">${escapeHtml(statusSummaryStr)}</p>` : ''}
-            ${isEmergencyDonor && row.recipient_received_at ? '<p style="font-size:.74rem;color:#166534;font-weight:700;"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Blood received confirmed by requester</p>' : ''}
-            <div style="font-size:.78rem;color:#64748b;margin-bottom:4px;">
-              ${isReplacement ? `${units} replacement donor${units === 1 ? '' : 's'} · Any eligible blood type · Hospital replacement` : `${units} unit${units === 1 ? '' : 's'} of ${escapeHtml(bloodType)}`}${communityLifecycle.status === 'active' && isUrgent ? ' · Urgent' : ''}
+            ${isReplacement || isEmergencyDonor ? `<p class="request-sub-note">${escapeHtml(statusSummaryStr)}</p>` : ''}
+            ${isEmergencyDonor && row.recipient_received_at ? '<p class="request-received-note"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Blood received confirmed by requester</p>' : ''}
+            <div class="request-units-line">
+              ${isReplacement ? `${units} replacement donor${units === 1 ? '' : 's'} · Any eligible blood type · Hospital replacement` : `${units} unit${units === 1 ? '' : 's'} of ${escapeHtml(bloodType)}`}
             </div>
-            <div style="font-size:0.74rem; color:var(--gray-500); display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+            <div class="request-location-line">
               <i class="fa-solid fa-location-dot" style="font-size:0.68rem;color:#94a3b8;"></i>
-              <span style="font-weight:600;color:#475569;">${escapeHtml(hospital)}</span>
-              <span style="color:#cbd5e1;">•</span>
+              <span class="request-hospital-name">${escapeHtml(hospital)}</span>
+              <span class="request-dot">•</span>
               <span>Requester: ${escapeHtml(patientName)}</span>
             </div>
           </div>
-          <div class="request-meta" style="display:flex; align-items:center; gap:8px; flex-direction:row;">
-            <button type="button" class="btn-row-action" style="padding:5px 10px; border-radius:6px; font-weight:700; font-size:0.75rem; background:#fff; border:1px solid #cbd5e1; color:#1e293b;" onclick="openAdminRequestDetails(${Number(reqId)})" title="View details">
+          <div class="request-meta">
+            <button type="button" class="btn-row-action" onclick="event.stopPropagation();openAdminRequestDetails(${Number(reqId)})" title="View details">
               <i class="fa-solid fa-circle-info"></i> Details
             </button>
-            ${mobilizeBtn}
           </div>
         </div>`;
   }).join('');
+
+  updateRequestsPagination(visible.length, rows.length);
 }
+
+function updateRequestsPagination(visibleCount, totalCount) {
+  const bar = document.getElementById('requestsPaginationBar');
+  if (!bar) return;
+  if (totalCount <= requestsPageSize && visibleCount >= totalCount) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'flex';
+  const remaining = totalCount - visibleCount;
+  if (remaining <= 0) {
+    bar.innerHTML = `
+      <span class="requests-page-info">Showing all ${totalCount} requests</span>
+      <button type="button" class="requests-show-all-btn" onclick="showLessRequests()">Show less</button>
+    `;
+    return;
+  }
+
+  const nextChunk = Math.min(requestsPageSize, remaining);
+  bar.innerHTML = `
+    <span class="requests-page-info">Showing ${visibleCount} of ${totalCount} requests</span>
+    <button type="button" class="requests-show-more-btn" onclick="showMoreRequests()">
+      <i class="fa-solid fa-chevron-down"></i> Show ${nextChunk} more
+    </button>
+    <button type="button" class="requests-show-all-btn" onclick="showAllRequests()">Show all (${totalCount})</button>
+  `;
+}
+
+function showMoreRequests() {
+  requestsVisibleCount += requestsPageSize;
+  renderRequestsSection();
+}
+window.showMoreRequests = showMoreRequests;
+
+function showAllRequests() {
+  requestsVisibleCount = 9999;
+  renderRequestsSection();
+}
+window.showAllRequests = showAllRequests;
+
+function showLessRequests() {
+  requestsVisibleCount = requestsPageSize;
+  renderRequestsSection();
+}
+window.showLessRequests = showLessRequests;
 
 function isDonorEligibleForAppeal(donor) {
   const availability = String(donor?.availability_status || '').toLowerCase();
@@ -3601,7 +3813,7 @@ function openMobilizeDonorsModal(requestId) {
   if (getCommunityLifecycleInfo(request).status !== 'active' || request.status !== 'approved' || request.verification_status !== 'verified') return;
   activeMobilizeRequestId = Number(requestId);
   const patient = Array.isArray(request.patient) ? request.patient[0] : request.patient;
-  const firstName = patient?.first_name || 'Community';
+  const firstName = patient?.first_name || 'Blood Bank';
   const lastName = patient?.last_name || 'Patient';
   const patientName = `${firstName} ${lastName}`.trim();
   const hospital = patient?.hospital_name || 'Partner Health Facility';
@@ -3709,13 +3921,54 @@ async function handleBroadcastAppeal() {
 }
 window.handleBroadcastAppeal = handleBroadcastAppeal;
 
+// Request section filters listeners
+const reqStatusEl = document.getElementById('requestStatusFilter');
+if (reqStatusEl) {
+  reqStatusEl.addEventListener('change', (e) => {
+    requestStatusFilterValue = e.target.value;
+    requestsVisibleCount = requestsPageSize;
+    renderRequestsSection();
+  });
+}
+const reqBloodEl = document.getElementById('requestBloodTypeFilter');
+if (reqBloodEl) {
+  reqBloodEl.addEventListener('change', (e) => {
+    requestBloodTypeFilterValue = e.target.value;
+    requestsVisibleCount = requestsPageSize;
+    renderRequestsSection();
+  });
+}
+const reqTypeEl = document.getElementById('requestTypeFilter');
+if (reqTypeEl) {
+  reqTypeEl.addEventListener('change', (e) => {
+    requestTypeFilterValue = e.target.value;
+    requestsVisibleCount = requestsPageSize;
+    renderRequestsSection();
+  });
+}
+const clearReqBtn = document.getElementById('clearRequestFilters');
+if (clearReqBtn) {
+  clearReqBtn.addEventListener('click', () => {
+    requestStatusFilterValue = 'all';
+    requestBloodTypeFilterValue = 'all';
+    requestTypeFilterValue = 'all';
+    if (reqStatusEl) reqStatusEl.value = 'all';
+    if (reqBloodEl) reqBloodEl.value = 'all';
+    if (reqTypeEl) reqTypeEl.value = 'all';
+    requestsVisibleCount = requestsPageSize;
+    renderRequestsSection();
+  });
+}
+
 document.querySelectorAll('#section-requests .panel-actions [data-request-filter]').forEach((btn) => {
   btn.addEventListener('click', () => {
-    requestFilter = btn.dataset.requestFilter || 'all';
+    requestStatusFilterValue = btn.dataset.requestFilter || 'all';
+    if (reqStatusEl) reqStatusEl.value = requestStatusFilterValue;
     document
       .querySelectorAll('#section-requests .panel-actions [data-request-filter]')
       .forEach((item) => item.classList.remove('active'));
     btn.classList.add('active');
+    requestsVisibleCount = requestsPageSize;
     renderRequestsSection();
   });
 });
@@ -3761,10 +4014,13 @@ document.querySelectorAll('.nav-item[data-section]').forEach(item => {
   const sideEmailEl = document.getElementById('sidebarFooterEmail');
   if (sideEmailEl) sideEmailEl.textContent = profile.email || user?.email || '';
 
-  await refreshOverviewStats();
-  await refreshOverviewPanels();
-  await refreshInventorySection();
-  await refreshRequestsSection();
+  // Load all dashboard sections in parallel for fast instant rendering
+  await Promise.allSettled([
+    refreshOverviewStats(),
+    refreshOverviewPanels(),
+    refreshInventorySection(),
+    refreshRequestsSection()
+  ]);
   renderBloodDrivesSection();
   renderReportsSection();
   applyOverviewExpirationsVisibility();
@@ -3898,7 +4154,7 @@ function isDonorEligibleForMap(donor) {
   if (status === 'donated') {
     const { eligible, daysRemaining } = isEligibleToCheckIn(donor);
     if (!eligible) {
-      return { eligible: false, reason: `Donor is in the 56-day post-donation waiting period (${daysRemaining} day(s) remaining).` };
+      return { eligible: false, reason: `Donor is in the 90-day post-donation waiting period (${daysRemaining} day(s) remaining).` };
     }
     return { eligible: true, reason: 'Medically screened and currently eligible to donate.' };
   }
@@ -3936,7 +4192,7 @@ function openDonorProfileModal(donorId) {
   document.getElementById('profileRegistered').value = formatDateShort(donor.created_at);
   document.getElementById('profileLastDonated').value = donor.last_donation_date
     ? formatDateShort(donor.last_donation_date)
-    : 'Never donated';
+    : 'No previous donation';
 
   const mapElig = isDonorEligibleForMap(donor);
   const showOnMapCheckbox = document.getElementById('profileShowOnMap');
@@ -4018,6 +4274,18 @@ function syncLocationVerification(donor, edited = false) {
   const missing = !area.value.trim();
   const changed = area.value.trim() !== String(donor?.map_area || '').trim();
   const recognizedArea = normalizeBoholMapArea(area.value);
+  const mapElig = isDonorEligibleForMap(donor);
+
+  // When donor is NOT medically eligible, force needs_review and lock dropdown
+  if (!mapElig.eligible) {
+    status.value = missing ? 'missing' : 'needs_review';
+    status.disabled = true;
+    status.querySelector('option[value="verified"]').disabled = true;
+    if (help) help.textContent = `Auto-locked: ${mapElig.reason} Location will be verified automatically upon medical approval.`;
+    return;
+  }
+
+  // Donor IS medically eligible — normal flow with auto-verify for recognized areas
   status.disabled = missing;
   status.querySelector('option[value="verified"]').disabled = changed && !recognizedArea;
   if (missing) status.value = 'missing';
@@ -4027,7 +4295,7 @@ function syncLocationVerification(donor, edited = false) {
   if (help) help.textContent = missing
     ? 'Enter a map area before location verification.'
     : recognizedArea
-      ? `${recognizedArea} is recognized and will be verified automatically when saved.`
+      ? `${recognizedArea} is recognized and verified automatically.`
     : changed
       ? 'Location changed. Save the area first, then review and verify it.'
       : 'This location is not recognized automatically. Confirm it before verifying.';
@@ -4230,7 +4498,7 @@ function formatNextEligible(lastDonationDate) {
   if (!lastDonationDate) return '<span class="badge registered" style="font-size:.68rem;">No previous donation</span>';
   const next = new Date(lastDonationDate);
   if (Number.isNaN(next.getTime())) return '<span class="badge registered">Date needs review</span>';
-  next.setDate(next.getDate() + 56);
+  next.setDate(next.getDate() + 90);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (next <= today) {
@@ -4239,29 +4507,35 @@ function formatNextEligible(lastDonationDate) {
   return `<span class="waiting-pill" style="font-size:.68rem;">Wait until ${formatDateShort(next)}</span>`;
 }
 
+let donorPageSize = 10;
+let donorVisibleCount = 10;
+
 function renderDonorRows() {
   const tbody = document.getElementById('donorTableBody');
   if (!tbody) return;
 
   const donors = applyDonorFilter(donorCache);
   const summary = document.getElementById('donorFilterSummary');
-  if (summary) summary.textContent = `Showing ${donors.length} of ${donorCache.length} donors`;
+  if (summary) summary.textContent = `Showing ${Math.min(donorVisibleCount, donors.length)} of ${donors.length} donors${donorCache.length !== donors.length ? ` (${donorCache.length} total)` : ''}`;
   const clearButton = document.getElementById('clearDonorFilters');
   if (clearButton) clearButton.disabled = donorFilter === 'all' && donorBloodTypeFilter === 'all' && !getSearchQuery();
   if (!donors || donors.length === 0) {
     const message = donorCache.length ? 'No donors match these filters.' : 'No donors yet.';
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--slate-400);padding:32px;">${message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--slate-400);padding:32px;">${message}</td></tr>`;
+    updateDonorPagination(0, 0);
     return;
   }
 
-  tbody.innerHTML = donors.map(d => {
+  const visible = donors.slice(0, donorVisibleCount);
+
+  tbody.innerHTML = visible.map(d => {
     const initials = ((d.first_name?.[0] || '') + (d.last_name?.[0] || '')).toUpperCase();
     const avatarClass = getAvatarClassFromBloodType(d.blood_type);
     const date = new Date(d.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const status = d.donor_status || 'registered';
     const badgeClass = getDonorLifecycleBadgeClass(status);
     const badgeLabel = getDonorLifecycleLabel(status);
-    return `<tr>
+    return `<tr class="donor-row" tabindex="0" role="button" onclick="openDonorProfileModal(${Number(d.id)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDonorProfileModal(${Number(d.id)});}" title="Click to view donor details">
           <td>
             <div class="donor-cell">
               <div class="donor-avatar ${avatarClass}">${initials}</div>
@@ -4279,14 +4553,59 @@ function renderDonorRows() {
           <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
           <td>${getMapVisibilityBadge(d)}</td>
           <td class="donor-donation-cell">
-            <span class="donor-donation-label">Last donated</span>
-            ${d.last_donation_date ? formatDateShort(d.last_donation_date) : '<span style="color:var(--gray-400);font-size:.8rem;">Never</span>'}
+            ${d.last_donation_date ? `<span class="donor-donation-label">Last donated</span>${formatDateShort(d.last_donation_date)}` : ''}
             <div>${formatNextEligible(d.last_donation_date)}</div>
           </td>
-          <td><button type="button" class="btn-row-action" onclick="openDonorProfileModal(${Number(d.id)})"><i class="fa-solid fa-eye"></i> View</button></td>
         </tr>`;
   }).join('');
+
+  updateDonorPagination(visible.length, donors.length);
 }
+
+function updateDonorPagination(visibleCount, totalCount) {
+  const bar = document.getElementById('donorPaginationBar');
+  if (!bar) return;
+  if (totalCount <= donorPageSize && visibleCount >= totalCount) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'flex';
+  const remaining = totalCount - visibleCount;
+  if (remaining <= 0) {
+    bar.innerHTML = `
+      <span class="donor-page-info">Showing all ${totalCount} donors</span>
+      <button type="button" class="donor-show-all-btn" onclick="showLessDonors()">Show less (first 10)</button>
+    `;
+    return;
+  }
+  const nextBatch = Math.min(donorPageSize, remaining);
+  bar.innerHTML = `
+    <span class="donor-page-info">Showing ${visibleCount} of ${totalCount} donors</span>
+    <button type="button" class="donor-show-more-btn" onclick="showMoreDonors()">
+      <i class="fa-solid fa-chevron-down"></i> Show ${nextBatch} more
+    </button>
+    <button type="button" class="donor-show-all-btn" onclick="showAllDonors()">Show all (${totalCount})</button>
+    ${visibleCount > donorPageSize ? '<button type="button" class="donor-show-all-btn" onclick="showLessDonors()">Show less</button>' : ''}
+  `;
+}
+
+function showMoreDonors() {
+  donorVisibleCount += donorPageSize;
+  renderDonorRows();
+}
+window.showMoreDonors = showMoreDonors;
+
+function showAllDonors() {
+  donorVisibleCount = Infinity;
+  renderDonorRows();
+}
+window.showAllDonors = showAllDonors;
+
+function showLessDonors() {
+  donorVisibleCount = donorPageSize;
+  renderDonorRows();
+}
+window.showLessDonors = showLessDonors;
 
 async function loadDonors() {
   try {
@@ -4296,6 +4615,7 @@ async function loadDonors() {
     if (error) throw error;
 
     donorCache = donors || [];
+    donorVisibleCount = donorPageSize; // Reset pagination on fresh load
     setSidebarBadge('donors', donorCache.length);
     renderDonorRows();
     buildOverviewActivityCache();
@@ -4307,17 +4627,19 @@ async function loadDonors() {
     const tbody = document.getElementById('donorTableBody');
     if (tbody) {
       donorCache = [];
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ef4444;padding:32px;">Failed to load donors: ${escapeHtml(err?.message || 'Unknown error')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#ef4444;padding:32px;">Failed to load donors: ${escapeHtml(err?.message || 'Unknown error')}</td></tr>`;
     }
   }
 }
 
 document.getElementById('donorStatusFilter')?.addEventListener('change', (event) => {
   donorFilter = event.target.value;
+  donorVisibleCount = donorPageSize;
   renderDonorRows();
 });
 document.getElementById('donorBloodTypeFilter')?.addEventListener('change', (event) => {
   donorBloodTypeFilter = event.target.value;
+  donorVisibleCount = donorPageSize;
   renderDonorRows();
 });
 document.getElementById('clearDonorFilters')?.addEventListener('click', () => {
@@ -4326,6 +4648,7 @@ document.getElementById('clearDonorFilters')?.addEventListener('click', () => {
   document.getElementById('donorStatusFilter').value = 'all';
   document.getElementById('donorBloodTypeFilter').value = 'all';
   if (globalSearchInput) globalSearchInput.value = '';
+  donorVisibleCount = donorPageSize;
   renderDonorRows();
 });
 
@@ -4401,7 +4724,7 @@ function updateProfileLifecycleUI(donor) {
   const btnMarkDonated = document.getElementById('btnMarkDonated');
   const btnDefer = document.getElementById('btnDefer');
 
-  // Check-in: enabled only if registered or deferred (and 56-day rule passes)
+  // Check-in: enabled only if registered or deferred (and 90-day rule passes)
   const canCheckIn = (status === 'registered' || status === 'deferred') && eligible;
   if (btnCheckIn) {
     btnCheckIn.disabled = !canCheckIn;
@@ -4584,6 +4907,25 @@ async function submitApproveMedical() {
   refreshOverviewStats();
   showLifecycleMsg('Medical screening approved! Donor is eligible for blood draw.', 'success');
 
+  // Auto-verify location when donor becomes medically approved
+  const approvedDonor = donorCache.find(d => Number(d.id ?? d.donor_id) === Number(activeDonorId));
+  if (approvedDonor) {
+    const mapArea = String(approvedDonor.map_area || '').trim();
+    if (mapArea) {
+      const autoLocationStatus = normalizeBoholMapArea(mapArea) ? 'verified' : approvedDonor.location_status;
+      try {
+        await updateDonorMapSettings(activeDonorId, {
+          show_on_map: approvedDonor.show_on_map === true,
+          location_status: autoLocationStatus === 'verified' ? 'verified' : approvedDonor.location_status,
+          map_area: mapArea
+        });
+        approvedDonor.location_status = autoLocationStatus === 'verified' ? 'verified' : approvedDonor.location_status;
+      } catch (_) { /* non-critical — admin can still verify manually */ }
+    }
+    syncLocationVerification(approvedDonor);
+    renderDonorRows();
+  }
+
   // Activity log
   const _amDonor = donorCache.find(d => Number(d.id ?? d.donor_id) === Number(activeDonorId));
   recordAdminActivity({
@@ -4736,6 +5078,22 @@ async function submitDefer() {
   showLifecycleMsg(`Donor deferred: ${reason} OK`, 'error');
   btn.disabled = false;
 
+  // Auto-revert location to needs_review when donor is deferred
+  const deferredDonor = donorCache.find(d => (d.id ?? d.donor_id) === activeDonorId);
+  if (deferredDonor && deferredDonor.location_status === 'verified') {
+    try {
+      await updateDonorMapSettings(activeDonorId, {
+        show_on_map: false,
+        location_status: 'needs_review',
+        map_area: deferredDonor.map_area || ''
+      });
+      deferredDonor.location_status = 'needs_review';
+      deferredDonor.show_on_map = false;
+    } catch (_) { /* non-critical */ }
+    syncLocationVerification(deferredDonor);
+    renderDonorRows();
+  }
+
   // Activity log
   const _dfDonor = donorCache.find(d => (d.id ?? d.donor_id) === activeDonorId);
   recordAdminActivity({
@@ -4840,7 +5198,7 @@ document.getElementById('addDonorForm')?.addEventListener('submit', async (e) =>
   // 6. Phone validation (optional, but if filled must be exactly 11 digits starting with 09)
   if (phone) {
     if (!/^09\d{9}$/.test(phone)) {
-      showError('Phone number must be an 11-digit Philippine mobile number starting with 09 (e.g. 09151234567).', phoneInput);
+      showError('Emergency contact number must be an 11-digit Philippine mobile number starting with 09 (e.g. 09151234567).', phoneInput);
       return;
     }
   }
@@ -5717,6 +6075,10 @@ async function initNotificationsRealtime() {
       refreshOverviewStats();
     })
     .on('postgres_changes', { event: '*', schema: 'blood_bank', table: 'donor_pledge' }, () => {
+      refreshRequestsSection();
+      refreshOverviewStats();
+    })
+    .on('postgres_changes', { event: '*', schema: 'blood_bank', table: 'request_verification_support' }, () => {
       refreshRequestsSection();
       refreshOverviewStats();
     })

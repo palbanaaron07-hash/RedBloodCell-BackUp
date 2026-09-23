@@ -253,13 +253,13 @@ function isDonorScreenedAndEligible(donor) {
   // 3. If approved, medical screening is completed and ready to donate!
   if (status === 'approved') return true;
 
-  // 4. If status is donated (or has last donation date), verify 56-day rule
+  // 4. If status is donated (or has last donation date), verify 90-day rule
   if (donor?.last_donation_date) {
     const next = new Date(donor.last_donation_date);
-    next.setDate(next.getDate() + 56);
+    next.setDate(next.getDate() + 90);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (next > today) return false; // Still in 56-day waiting period
+    if (next > today) return false; // Still in 90-day waiting period
   }
 
   return status === 'donated' || status === 'available';

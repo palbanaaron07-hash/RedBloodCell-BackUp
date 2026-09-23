@@ -1,5 +1,5 @@
 -- Migration: Restrict public map donors to medically screened and eligible donors only
--- Ensures donors who are only 'registered', 'checked_in', 'deferred', or in 56-day waiting period do not appear on public maps.
+-- Ensures donors who are only 'registered', 'checked_in', 'deferred', or in 90-day waiting period do not appear on public maps.
 
 create or replace function blood_bank.list_visible_donors()
 returns table (
@@ -29,7 +29,7 @@ as $$
       lower(coalesce(d.donor_status, '')) = 'approved'
       or (
         lower(coalesce(d.donor_status, '')) = 'donated'
-        and (d.last_donation_date is null or d.last_donation_date <= current_date - interval '56 days')
+        and (d.last_donation_date is null or d.last_donation_date <= current_date - interval '90 days')
       )
     )
   order by d.donor_id;

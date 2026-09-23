@@ -48,7 +48,7 @@ as $$
     and (br.request_type = 'replacement' or br.expires_at > now())
     and lower(coalesce(d.availability_status, '')) = 'available'
     and lower(coalesce(d.donor_status, '')) in ('approved', 'donated')
-    and (d.last_donation_date is null or d.last_donation_date <= current_date - 56)
+    and (d.last_donation_date is null or d.last_donation_date <= current_date - 90)
     and (
       br.request_type = 'replacement'
       or blood_bank.is_red_cell_compatible(d.blood_type, br.blood_type_needed)
@@ -105,7 +105,7 @@ begin
       or blood_bank.is_red_cell_compatible(d.blood_type, request_row.blood_type_needed))
     and lower(coalesce(d.availability_status, '')) = 'available'
     and lower(coalesce(d.donor_status, 'registered')) in ('approved', 'donated')
-    and (d.last_donation_date is null or d.last_donation_date <= current_date - 56)
+    and (d.last_donation_date is null or d.last_donation_date <= current_date - 90)
     and not blood_bank.is_requester_donor(
       request_row.patient_id, d.auth_user_id, d.email, d.contact_number
     )
@@ -138,7 +138,7 @@ begin
       or blood_bank.is_red_cell_compatible(d.blood_type, request_row.blood_type_needed))
     and lower(coalesce(d.availability_status, '')) = 'available'
     and lower(coalesce(d.donor_status, 'registered')) in ('approved', 'donated')
-    and (d.last_donation_date is null or d.last_donation_date <= current_date - 56)
+    and (d.last_donation_date is null or d.last_donation_date <= current_date - 90)
     and not blood_bank.is_requester_donor(
       request_row.patient_id, d.auth_user_id, d.email, d.contact_number
     )
@@ -203,7 +203,7 @@ begin
   if lower(coalesce(donor_row.availability_status, '')) <> 'available'
     or lower(coalesce(donor_row.donor_status, 'registered')) not in ('approved', 'donated')
     or (donor_row.last_donation_date is not null
-      and donor_row.last_donation_date > current_date - 56)
+      and donor_row.last_donation_date > current_date - 90)
   then
     raise exception 'Your donor profile is not currently eligible to pledge';
   end if;

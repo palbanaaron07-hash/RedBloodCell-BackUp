@@ -15,7 +15,8 @@ for (const control of [
 
 assert.doesNotMatch(html, /id="requestType"/);
 assert.match(html, /name="request_type" value="emergency_donor"/);
-assert.match(html, /A coordinator will verify the request, check matching blood availability/);
+assert.match(html, /An authorized admin will privately review the request/);
+assert.match(html, /It is not published as a community request/);
 assert.match(client, /const requestType = 'emergency_donor'/);
 assert.doesNotMatch(patient, /function syncRequestTypeFields/);
 assert.match(patient, /Any eligible blood type/);
