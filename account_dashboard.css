@@ -2289,28 +2289,6 @@ body.desktop-sidebar-open .main {
   gap: 4px;
 }
 
-.request-fulfillment-attribution {
-  display: flex;
-  align-items: center;
-  width: fit-content;
-  gap: 5px;
-  margin-top: 6px;
-  padding: 3px 8px;
-  border: 1px solid #bfdbfe;
-  border-radius: 999px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.request-fulfillment-attribution.requester {
-  border-color: #a7f3d0;
-  background: #ecfdf5;
-  color: #047857;
-}
-
 .feed-options-btn {
   background: none;
   border: none;
@@ -3744,14 +3722,14 @@ html[data-initial-section="help"] #section-help {
 .missed-drives-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 7px 12px;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 9px;
   border: 1px solid var(--slate-200);
   border-radius: var(--radius-sm);
   background: var(--white);
   color: var(--slate-600);
-  font-size: .78rem;
+  font-size: .72rem;
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
@@ -3759,14 +3737,14 @@ html[data-initial-section="help"] #section-help {
 }
 
 .missed-drives-toggle span {
-  min-width: 20px;
-  height: 20px;
+  min-width: 17px;
+  height: 17px;
   display: grid;
   place-items: center;
   border-radius: 999px;
   background: var(--slate-100);
   color: var(--slate-500);
-  font-size: .68rem;
+  font-size: .62rem;
 }
 
 .missed-drives-toggle:hover,
@@ -4039,7 +4017,23 @@ html[data-initial-section="help"] #section-help {
 }
 
 .drive-details-modal {
+  display: flex;
+  flex-direction: column;
   width: 620px;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+}
+
+.drive-details-modal > .modal-header,
+.drive-details-modal > .modal-footer {
+  flex: 0 0 auto;
+}
+
+.drive-details-modal > .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .drive-details-content {
@@ -4638,9 +4632,9 @@ html[data-initial-section="help"] #section-help {
     width: auto;
     justify-content: center;
     gap: 5px;
-    min-height: 32px;
-    padding: 6px 8px;
-    font-size: .7rem;
+    min-height: 28px;
+    padding: 4px 7px;
+    font-size: .67rem;
   }
 
   #logoutConfirmModal.active {

@@ -61,12 +61,16 @@
 #requestForm .request-attachment-picker.has-file .request-attachment-icon { background: #800000; color: #fff; }
 #requestForm .request-review-note { margin: 0; padding: 10px 12px; border: 1px solid #fde68a; border-radius: 9px; background: #fffbeb; color: #92400e; font-size: .76rem; line-height: 1.5; }
 #requestForm .request-review-note i { color: #b45309; }
-#requestForm .modal-footer { position: sticky; bottom: 0; padding: 14px 0; background: #fff; border-top: 1px solid #efdee1; margin-top: 16px; }
+#requestForm .modal-footer { position: sticky; bottom: 0; display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 0; background: #fff; border-top: 1px solid #efdee1; margin-top: 16px; }
+#requestForm .request-form-actions { display: flex; justify-content: flex-end; gap: 10px; }
 #requestForm #requestMsg:empty { display: none; }
 @media (max-width: 540px) {
+  #requestModal.active { top: var(--request-modal-top, 0px); bottom: auto; height: var(--request-modal-height, 100vh); }
+  #requestModal .modal { max-height: calc(var(--request-modal-height, 100vh) - 32px); }
   #requestModal .modal-header { padding: 16px; }
   #requestForm { padding: 16px 16px 0; }
   #requestForm .form-row { display: grid; grid-template-columns: 1fr; }
+  #requestForm .request-form-actions { flex-direction: column-reverse; }
   #requestForm .request-form-section { padding: 12px; }
   #requestForm .form-row:last-child .form-group:not(:last-child) { margin-bottom: 14px; }
 }

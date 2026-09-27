@@ -26,7 +26,7 @@ assert.doesNotMatch(accountScript.slice(accountScript.indexOf('function renderRe
 
 assert.doesNotMatch(adminHtml, /id="mobilizeDonorsModal"|id="btnBroadcastAppeal"/);
 assert.doesNotMatch(adminScript, /\$\{canMobilize \?|\$\{mobilizeBtn\}/);
-assert.doesNotMatch(adminScript.slice(adminScript.indexOf('function renderRequestsSection()'), adminScript.indexOf('function isDonorEligibleForAppeal')), /communityLifecycle|Donors Pledged/);
+assert.doesNotMatch(adminScript.slice(adminScript.indexOf('function renderRequestsSection()'), adminScript.indexOf('// Request section filters listeners')), /communityLifecycle|Donors Pledged/);
 assert.doesNotMatch(client, /rpc\('get_my_matching_requests'\)/);
 
 for (const safeguard of [
@@ -39,3 +39,4 @@ for (const safeguard of [
 
 assert.match(notificationMigration, /trg_notify_admin_new_blood_request/);
 console.log('Admin-only blood request regression checks passed.');
+assert.doesNotMatch(adminScript, /openMobilizeDonorsModal|handleBroadcastAppeal|activeMobilizeRequestId/);

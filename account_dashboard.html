@@ -21,14 +21,15 @@
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@400;600;700;800&display=swap" />
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/account_dashboard.css?v=20260921cleandrive" />
+  <link rel="stylesheet" href="/account_dashboard.css?v=20260927fulfillmentpill" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="/recipient_donor_mobile_nav.css?v=20260907fix" />
   <link rel="stylesheet" href="/styles/components/shared-selects.css?v=20260912a" />
-  <link rel="stylesheet" href="/styles/components/request-form.css?v=20260919statusbadges" />
+  <link rel="stylesheet" href="/styles/components/request-form.css?v=20260926requestmessage" />
   <link rel="stylesheet" href="/styles/components/recipient-overview.css?v=20260913a" />
   <link rel="stylesheet" href="/styles/components/mobile-request-cards.css?v=20260921thickoutline" />
   <link rel="stylesheet" href="/styles/components/blood-received-dialog.css?v=20260913a" />
+  <script src="/connection-status.js" defer></script>
 </head>
 
 <body>
@@ -206,13 +207,27 @@
               <span class="skeleton skeleton-text" style="width:38%"></span>
             </div>
             <div class="skeleton-stat-cards">
-              <div class="skeleton-stat-card"><span class="skeleton skeleton-circle" style="width:36px;height:36px"></span><span class="skeleton skeleton-text-lg" style="width:60%"></span><span class="skeleton skeleton-text" style="width:40%"></span></div>
-              <div class="skeleton-stat-card"><span class="skeleton skeleton-circle" style="width:36px;height:36px"></span><span class="skeleton skeleton-text-lg" style="width:60%"></span><span class="skeleton skeleton-text" style="width:40%"></span></div>
-              <div class="skeleton-stat-card"><span class="skeleton skeleton-circle" style="width:36px;height:36px"></span><span class="skeleton skeleton-text-lg" style="width:60%"></span><span class="skeleton skeleton-text" style="width:40%"></span></div>
+              <div class="skeleton-stat-card"><span class="skeleton skeleton-circle"
+                  style="width:36px;height:36px"></span><span class="skeleton skeleton-text-lg"
+                  style="width:60%"></span><span class="skeleton skeleton-text" style="width:40%"></span></div>
+              <div class="skeleton-stat-card"><span class="skeleton skeleton-circle"
+                  style="width:36px;height:36px"></span><span class="skeleton skeleton-text-lg"
+                  style="width:60%"></span><span class="skeleton skeleton-text" style="width:40%"></span></div>
+              <div class="skeleton-stat-card"><span class="skeleton skeleton-circle"
+                  style="width:36px;height:36px"></span><span class="skeleton skeleton-text-lg"
+                  style="width:60%"></span><span class="skeleton skeleton-text" style="width:40%"></span></div>
             </div>
             <div class="skeleton-action-cards">
-              <div class="skeleton-action-card"><span class="skeleton skeleton-circle" style="width:40px;height:40px;flex-shrink:0"></span><div style="flex:1;display:flex;flex-direction:column;gap:8px"><span class="skeleton skeleton-text-lg" style="width:70%"></span><span class="skeleton skeleton-text" style="width:85%"></span></div></div>
-              <div class="skeleton-action-card"><span class="skeleton skeleton-circle" style="width:40px;height:40px;flex-shrink:0"></span><div style="flex:1;display:flex;flex-direction:column;gap:8px"><span class="skeleton skeleton-text-lg" style="width:70%"></span><span class="skeleton skeleton-text" style="width:85%"></span></div></div>
+              <div class="skeleton-action-card"><span class="skeleton skeleton-circle"
+                  style="width:40px;height:40px;flex-shrink:0"></span>
+                <div style="flex:1;display:flex;flex-direction:column;gap:8px"><span class="skeleton skeleton-text-lg"
+                    style="width:70%"></span><span class="skeleton skeleton-text" style="width:85%"></span></div>
+              </div>
+              <div class="skeleton-action-card"><span class="skeleton skeleton-circle"
+                  style="width:40px;height:40px;flex-shrink:0"></span>
+                <div style="flex:1;display:flex;flex-direction:column;gap:8px"><span class="skeleton skeleton-text-lg"
+                    style="width:70%"></span><span class="skeleton skeleton-text" style="width:85%"></span></div>
+              </div>
             </div>
           </div>
         </div>
@@ -223,12 +238,18 @@
           <div class="recipient-overview-actions">
             <a class="card recipient-overview-link" href="#section-requests">
               <i class="fa-solid fa-hand-holding-medical" aria-hidden="true"></i>
-              <div><h3>Blood requests</h3><p>Create a request or check your existing requests.</p></div>
+              <div>
+                <h3>Blood requests</h3>
+                <p>Create a request or check your existing requests.</p>
+              </div>
               <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
             </a>
             <a class="card recipient-overview-link" href="recipient_donor_map.html">
               <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
-              <div><h3>Community donor map</h3><p>Explore eligible donors by blood type and area.</p></div>
+              <div>
+                <h3>Community donor map</h3>
+                <p>Explore eligible donors by blood type and area.</p>
+              </div>
               <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
             </a>
           </div>
@@ -252,28 +273,40 @@
         <div id="donorDashboardState" hidden>
           <section class="stats-row donor-stats-row" aria-label="Donor overview">
             <div class="stat-card green stat-card-passive donor-status-card" id="donorEligibilityCard">
-              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-shield-heart"></i></div><p class="stat-label">Eligibility</p></div>
+              <div class="donor-stat-head">
+                <div class="stat-ring"><i class="fa-solid fa-shield-heart"></i></div>
+                <p class="stat-label">Eligibility</p>
+              </div>
               <div class="stat-body">
                 <h2 class="stat-number donor-stat-text" id="donorEligibilityStat">--</h2>
                 <p class="stat-sub" id="donorEligibilitySub">Checking status</p>
               </div>
             </div>
             <div class="stat-card blue stat-card-passive donor-status-card" id="donorAvailabilityCard">
-              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-tower-broadcast"></i></div><p class="stat-label">Availability</p></div>
+              <div class="donor-stat-head">
+                <div class="stat-ring"><i class="fa-solid fa-tower-broadcast"></i></div>
+                <p class="stat-label">Availability</p>
+              </div>
               <div class="stat-body">
                 <h2 class="stat-number donor-stat-text" id="donorAvailabilityStat">--</h2>
                 <p class="stat-sub" id="donorAvailabilitySub">Your current setting</p>
               </div>
             </div>
             <div class="stat-card red stat-card-passive donor-status-card" id="donorLastDonationCard">
-              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-clock-rotate-left"></i></div><p class="stat-label">Last donation</p></div>
+              <div class="donor-stat-head">
+                <div class="stat-ring"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                <p class="stat-label">Last donation</p>
+              </div>
               <div class="stat-body">
                 <h2 class="stat-number donor-stat-text" id="donorLastDonationStat">--</h2>
                 <p class="stat-sub" id="donorLastDonationSub">Recorded donation</p>
               </div>
             </div>
             <div class="stat-card violet stat-card-passive donor-status-card" id="donorNextEligibleCard">
-              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-calendar-day"></i></div><p class="stat-label">Next eligible</p></div>
+              <div class="donor-stat-head">
+                <div class="stat-ring"><i class="fa-solid fa-calendar-day"></i></div>
+                <p class="stat-label">Next eligible</p>
+              </div>
               <div class="stat-body">
                 <h2 class="stat-number donor-stat-text" id="donorNextEligibleStat">--</h2>
                 <p class="stat-sub" id="donorNextEligibleSub">Based on the 3-month recovery period</p>
@@ -298,21 +331,11 @@
                 </div>
                 <div class="donor-availability-control">
                   <div>
-                    <strong>Available for donor requests</strong>
-                    <span id="donorAvailabilityHelp">Receive donor appeals when you meet eligibility requirements.</span>
-                  </div>
-                  <button type="button" class="availability-toggle" id="donorAvailabilityToggle" aria-pressed="false"
-                    onclick="toggleMyDonorAvailability()">
-                    <span></span><strong>Off</strong>
-                  </button>
-                </div>
-                <div class="donor-availability-control"
-                  style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
-                  <div>
                     <strong><i class="fa-solid fa-map-location-dot"
                         style="color:var(--rose-400,#fb7185);margin-right:4px;"></i> Allow map visibility</strong>
                     <span id="donorMapPrivacyHelp"
-                      style="display:block;font-size:0.75rem;color:var(--slate-400,#94a3b8);">Show your approximate area only when available, medically approved, and location verified.</span>
+                      style="display:block;font-size:0.75rem;color:var(--slate-400,#94a3b8);">Show your approximate area
+                      only when available, medically approved, and location verified.</span>
                   </div>
                   <button type="button" class="availability-toggle" id="donorMapVisibilityToggle" aria-pressed="false"
                     onclick="toggleMyDonorMapVisibility()">
@@ -330,8 +353,16 @@
               </div>
               <div class="card-body donor-history-body">
                 <div class="donor-activity-list" id="donorDonationHistory">
-                  <div class="skeleton-history-row"><span class="skeleton skeleton-circle" style="width:32px;height:32px;flex-shrink:0"></span><div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="skeleton skeleton-text" style="width:55%"></span><span class="skeleton skeleton-text-sm" style="width:38%"></span></div></div>
-                  <div class="skeleton-history-row"><span class="skeleton skeleton-circle" style="width:32px;height:32px;flex-shrink:0"></span><div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="skeleton skeleton-text" style="width:50%"></span><span class="skeleton skeleton-text-sm" style="width:33%"></span></div></div>
+                  <div class="skeleton-history-row"><span class="skeleton skeleton-circle"
+                      style="width:32px;height:32px;flex-shrink:0"></span>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="skeleton skeleton-text"
+                        style="width:55%"></span><span class="skeleton skeleton-text-sm" style="width:38%"></span></div>
+                  </div>
+                  <div class="skeleton-history-row"><span class="skeleton skeleton-circle"
+                      style="width:32px;height:32px;flex-shrink:0"></span>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="skeleton skeleton-text"
+                        style="width:50%"></span><span class="skeleton skeleton-text-sm" style="width:33%"></span></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -400,8 +431,30 @@
           <!-- Private requests sent to the blood bank -->
           <div class="community-request-feed" id="requestList">
             <div id="myRequestsSkeletonHolder">
-              <div class="skeleton-request-card"><div class="skeleton-request-header"><span class="skeleton skeleton-circle" style="width:42px;height:42px"></span><div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg" style="width:50%"></span><span class="skeleton skeleton-text" style="width:36%"></span></div><span class="skeleton skeleton-pill" style="width:58px;height:22px"></span></div><div class="skeleton-request-pills"><span class="skeleton skeleton-pill" style="width:62px;height:20px"></span><span class="skeleton skeleton-pill" style="width:76px;height:20px"></span></div><span class="skeleton skeleton-text" style="width:90%"></span></div>
-              <div class="skeleton-request-card"><div class="skeleton-request-header"><span class="skeleton skeleton-circle" style="width:42px;height:42px"></span><div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg" style="width:44%"></span><span class="skeleton skeleton-text" style="width:32%"></span></div><span class="skeleton skeleton-pill" style="width:58px;height:22px"></span></div><div class="skeleton-request-pills"><span class="skeleton skeleton-pill" style="width:56px;height:20px"></span><span class="skeleton skeleton-pill" style="width:72px;height:20px"></span></div><span class="skeleton skeleton-text" style="width:85%"></span></div>
+              <div class="skeleton-request-card">
+                <div class="skeleton-request-header"><span class="skeleton skeleton-circle"
+                    style="width:42px;height:42px"></span>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg"
+                      style="width:50%"></span><span class="skeleton skeleton-text" style="width:36%"></span></div><span
+                    class="skeleton skeleton-pill" style="width:58px;height:22px"></span>
+                </div>
+                <div class="skeleton-request-pills"><span class="skeleton skeleton-pill"
+                    style="width:62px;height:20px"></span><span class="skeleton skeleton-pill"
+                    style="width:76px;height:20px"></span></div><span class="skeleton skeleton-text"
+                  style="width:90%"></span>
+              </div>
+              <div class="skeleton-request-card">
+                <div class="skeleton-request-header"><span class="skeleton skeleton-circle"
+                    style="width:42px;height:42px"></span>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg"
+                      style="width:44%"></span><span class="skeleton skeleton-text" style="width:32%"></span></div><span
+                    class="skeleton skeleton-pill" style="width:58px;height:22px"></span>
+                </div>
+                <div class="skeleton-request-pills"><span class="skeleton skeleton-pill"
+                    style="width:56px;height:20px"></span><span class="skeleton skeleton-pill"
+                    style="width:72px;height:20px"></span></div><span class="skeleton skeleton-text"
+                  style="width:85%"></span>
+              </div>
             </div>
           </div>
         </div>
@@ -431,10 +484,14 @@
               <span class="skeleton skeleton-text-sm" style="width:180px"></span>
               <span class="skeleton skeleton-pill" style="width:70px;height:24px;margin-top:4px"></span>
               <div class="skeleton-profile-meta" style="margin-top:12px">
-                <div class="skeleton-profile-meta-row"><span class="skeleton skeleton-text-sm" style="width:50px"></span><span class="skeleton skeleton-text-sm" style="width:100px"></span></div>
-                <div class="skeleton-profile-meta-row"><span class="skeleton skeleton-text-sm" style="width:60px"></span><span class="skeleton skeleton-text-sm" style="width:80px"></span></div>
-                <div class="skeleton-profile-meta-row"><span class="skeleton skeleton-text-sm" style="width:65px"></span><span class="skeleton skeleton-text-sm" style="width:140px"></span></div>
-                <div class="skeleton-profile-meta-row"><span class="skeleton skeleton-text-sm" style="width:80px"></span><span class="skeleton skeleton-text-sm" style="width:90px"></span></div>
+                <div class="skeleton-profile-meta-row"><span class="skeleton skeleton-text-sm"
+                    style="width:50px"></span><span class="skeleton skeleton-text-sm" style="width:100px"></span></div>
+                <div class="skeleton-profile-meta-row"><span class="skeleton skeleton-text-sm"
+                    style="width:60px"></span><span class="skeleton skeleton-text-sm" style="width:80px"></span></div>
+                <div class="skeleton-profile-meta-row"><span class="skeleton skeleton-text-sm"
+                    style="width:65px"></span><span class="skeleton skeleton-text-sm" style="width:140px"></span></div>
+                <div class="skeleton-profile-meta-row"><span class="skeleton skeleton-text-sm"
+                    style="width:80px"></span><span class="skeleton skeleton-text-sm" style="width:90px"></span></div>
               </div>
             </div>
             <div class="profile-snap" id="profileSnapContent" hidden>
@@ -485,22 +542,23 @@
                 </div>
               </div>
               <div id="compatContent" hidden>
-              <div style="text-align:center; padding: 16px 0 20px;">
-                <div class="profile-blood-badge" id="profileBloodBadge2" style="font-size:1.5rem; padding: 12px 28px;">
-                  <i class="fa-solid fa-droplet"></i> <span id="profileBloodType2">-</span>
+                <div style="text-align:center; padding: 16px 0 20px;">
+                  <div class="profile-blood-badge" id="profileBloodBadge2"
+                    style="font-size:1.5rem; padding: 12px 28px;">
+                    <i class="fa-solid fa-droplet"></i> <span id="profileBloodType2">-</span>
+                  </div>
                 </div>
-              </div>
 
-              <div class="compat" id="compatSection2"
-                style="display:none; margin-top:0; border-top: 1px solid var(--slate-100); padding-top: 16px;">
-                <p class="compat-label">You can receive blood from</p>
-                <div class="compat-tags" id="compatTags2"></div>
-              </div>
+                <div class="compat" id="compatSection2"
+                  style="display:none; margin-top:0; border-top: 1px solid var(--slate-100); padding-top: 16px;">
+                  <p class="compat-label">You can receive blood from</p>
+                  <div class="compat-tags" id="compatTags2"></div>
+                </div>
 
-              <div class="compat" id="donateTo" style="display:none; margin-top:0;">
-                <p class="compat-label">You can donate to</p>
-                <div class="compat-tags" id="donateToTags"></div>
-              </div>
+                <div class="compat" id="donateTo" style="display:none; margin-top:0;">
+                  <p class="compat-label">You can donate to</p>
+                  <div class="compat-tags" id="donateToTags"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -527,9 +585,25 @@
           </div>
           <div class="drive-card-grid" id="drivesTableBody">
             <div class="skeleton-drive-grid" id="drivesSkeletonHolder">
-              <div class="skeleton-drive-card"><span class="skeleton skeleton-text-xl" style="width:40%"></span><span class="skeleton skeleton-text-lg" style="width:75%"></span><span class="skeleton skeleton-text" style="width:60%"></span><div style="display:flex;gap:8px;margin-top:4px"><span class="skeleton skeleton-pill" style="width:80px;height:22px"></span></div></div>
-              <div class="skeleton-drive-card"><span class="skeleton skeleton-text-xl" style="width:35%"></span><span class="skeleton skeleton-text-lg" style="width:70%"></span><span class="skeleton skeleton-text" style="width:55%"></span><div style="display:flex;gap:8px;margin-top:4px"><span class="skeleton skeleton-pill" style="width:80px;height:22px"></span></div></div>
-              <div class="skeleton-drive-card"><span class="skeleton skeleton-text-xl" style="width:45%"></span><span class="skeleton skeleton-text-lg" style="width:80%"></span><span class="skeleton skeleton-text" style="width:65%"></span><div style="display:flex;gap:8px;margin-top:4px"><span class="skeleton skeleton-pill" style="width:80px;height:22px"></span><span class="skeleton skeleton-pill" style="width:70px;height:22px"></span></div></div>
+              <div class="skeleton-drive-card"><span class="skeleton skeleton-text-xl" style="width:40%"></span><span
+                  class="skeleton skeleton-text-lg" style="width:75%"></span><span class="skeleton skeleton-text"
+                  style="width:60%"></span>
+                <div style="display:flex;gap:8px;margin-top:4px"><span class="skeleton skeleton-pill"
+                    style="width:80px;height:22px"></span></div>
+              </div>
+              <div class="skeleton-drive-card"><span class="skeleton skeleton-text-xl" style="width:35%"></span><span
+                  class="skeleton skeleton-text-lg" style="width:70%"></span><span class="skeleton skeleton-text"
+                  style="width:55%"></span>
+                <div style="display:flex;gap:8px;margin-top:4px"><span class="skeleton skeleton-pill"
+                    style="width:80px;height:22px"></span></div>
+              </div>
+              <div class="skeleton-drive-card"><span class="skeleton skeleton-text-xl" style="width:45%"></span><span
+                  class="skeleton skeleton-text-lg" style="width:80%"></span><span class="skeleton skeleton-text"
+                  style="width:65%"></span>
+                <div style="display:flex;gap:8px;margin-top:4px"><span class="skeleton skeleton-pill"
+                    style="width:80px;height:22px"></span><span class="skeleton skeleton-pill"
+                    style="width:70px;height:22px"></span></div>
+              </div>
             </div>
           </div>
         </div>
@@ -545,76 +619,84 @@
       <div class="modal">
         <div class="modal-header">
           <h3 id="requestFormTitle"><i class="fa-solid fa-file-medical"></i> Create Blood Request</h3>
-          <button type="button" class="modal-close" aria-label="Close request form" onclick="closeRequestModal()">&times;</button>
+          <button type="button" class="modal-close" aria-label="Close request form"
+            onclick="closeRequestModal()">&times;</button>
         </div>
         <form id="requestForm" class="modal-body">
           <input type="hidden" name="request_type" value="emergency_donor" />
-          <p class="request-form-intro">Tell the blood bank what is needed. An authorized admin will privately review the request and coordinate the appropriate blood supply. <span>Fields marked * are required.</span></p>
+          <p class="request-form-intro">Tell the blood bank what is needed. An authorized admin will privately review
+            the request and coordinate the appropriate blood supply. <span>Fields marked * are required.</span></p>
           <fieldset class="request-form-section">
             <legend>1. Blood requirements</legend>
-          <div class="form-row" id="requestBloodRequirementsRow">
-            <div class="form-group" id="requestBloodTypeGroup">
-              <label for="requestBloodType">Blood type <span class="req">*</span></label>
-              <select name="blood_type" id="requestBloodType" required>
-                <option value="" disabled selected>Select blood type</option>
-                <option value="A+">A+</option>
-                <option value="A-">A-</option>
-                <option value="B+">B+</option>
-                <option value="B-">B-</option>
-                <option value="AB+">AB+</option>
-                <option value="AB-">AB-</option>
-                <option value="O+">O+</option>
-                <option value="O-">O-</option>
-              </select>
+            <div class="form-row" id="requestBloodRequirementsRow">
+              <div class="form-group" id="requestBloodTypeGroup">
+                <label for="requestBloodType">Blood type <span class="req">*</span></label>
+                <select name="blood_type" id="requestBloodType" required>
+                  <option value="" disabled selected>Select blood type</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="requestUnits"><span id="requestUnitsLabel">Units needed</span> <span
+                    class="req">*</span></label>
+                <input id="requestUnits" type="number" name="units_needed" min="1" max="20" value="1" required />
+              </div>
             </div>
-            <div class="form-group">
-              <label for="requestUnits"><span id="requestUnitsLabel">Units needed</span> <span class="req">*</span></label>
-              <input id="requestUnits" type="number" name="units_needed" min="1" max="20" value="1" required />
+            <div class="form-row" id="requestTimingRow">
+              <div class="form-group" id="requestUrgencyGroup">
+                <label for="requestUrgency">Urgency <span class="req">*</span></label>
+                <select id="requestUrgency" name="urgency" required>
+                  <option value="normal">Normal</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="requestNeededTime">When is it needed? <span class="optional">Optional</span></label>
+                <input id="requestNeededTime" type="text" name="needed_time" placeholder="e.g. Today, by 3 PM" />
+              </div>
             </div>
-          </div>
-          <div class="form-row" id="requestTimingRow">
-            <div class="form-group" id="requestUrgencyGroup">
-              <label for="requestUrgency">Urgency <span class="req">*</span></label>
-              <select id="requestUrgency" name="urgency" required>
-                <option value="normal">Normal</option>
-                <option value="urgent">Urgent</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="requestNeededTime">When is it needed? <span class="optional">Optional</span></label>
-              <input id="requestNeededTime" type="text" name="needed_time" placeholder="e.g. Today, by 3 PM" />
-            </div>
-          </div>
           </fieldset>
           <fieldset class="request-form-section">
             <legend>2. Hospital &amp; request details</legend>
-          <div class="form-group">
-            <label for="requestHospital">Hospital / donation location <span class="req">*</span></label>
-            <input id="requestHospital" type="text" name="hospital" placeholder="Hospital or facility name and city" required />
-          </div>
-          <div class="form-group">
-            <label for="requestReference">Hospital reference number <span class="req">*</span></label>
-            <input id="requestReference" type="text" name="hospital_reference" maxlength="100" placeholder="Request or replacement slip number" required />
-          </div>
-          <div class="form-group">
-            <label for="requestNotes">Reason for request <span class="req">*</span></label>
-            <textarea id="requestNotes" name="notes" placeholder="Briefly explain the need and any donation instructions." aria-describedby="requestNotesHelp"
-              required></textarea>
-            <small id="requestNotesHelp">Avoid including private patient information in this description.</small>
-          </div>
+            <div class="form-group">
+              <label for="requestHospital">Hospital / donation location <span class="req">*</span></label>
+              <input id="requestHospital" type="text" name="hospital" placeholder="Hospital or facility name and city"
+                required />
+            </div>
+            <div class="form-group">
+              <label for="requestReference">Hospital reference number <span class="req">*</span></label>
+              <input id="requestReference" type="text" name="hospital_reference" maxlength="100"
+                placeholder="Request or replacement slip number" required />
+            </div>
+            <div class="form-group">
+              <label for="requestNotes">Reason for request <span class="req">*</span></label>
+              <textarea id="requestNotes" name="notes"
+                placeholder="Briefly explain the need and any donation instructions."
+                aria-describedby="requestNotesHelp" required></textarea>
+              <small id="requestNotesHelp">Avoid including private patient information in this description.</small>
+            </div>
           </fieldset>
           <fieldset class="request-form-section request-verification-support">
             <legend>3. Verification support <span class="optional">Optional</span></legend>
-            <p class="verification-support-intro">These private details help the blood bank verify and process your request.</p>
+            <p class="verification-support-intro">These private details help the blood bank verify and process your
+              request.</p>
             <div class="form-group">
               <label for="requestFacilityContact">Facility contact number <span class="optional">Optional</span></label>
-              <input id="requestFacilityContact" type="tel" name="facility_contact" maxlength="120" placeholder="Official facility number, if available" />
+              <input id="requestFacilityContact" type="tel" name="facility_contact" maxlength="120"
+                placeholder="Official facility number, if available" />
             </div>
             <div class="form-group">
-              <span class="request-field-label" id="requestDocumentLabel">Supporting documents <span class="optional">Optional</span></span>
+              <span class="request-field-label" id="requestDocumentLabel">Supporting documents <span
+                  class="optional">Optional</span></span>
               <input id="requestSupportingDocument" class="request-file-input" type="file" name="supporting_document"
-                accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf"
-                multiple
+                accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf" multiple
                 aria-labelledby="requestDocumentLabel requestDocumentName" aria-describedby="requestDocumentHelp" />
               <label class="request-attachment-picker" id="requestDocumentPicker" for="requestSupportingDocument">
                 <span class="request-attachment-icon" aria-hidden="true"><i class="fa-solid fa-paperclip"></i></span>
@@ -625,14 +707,19 @@
                 <i class="fa-solid fa-cloud-arrow-up request-attachment-chevron" aria-hidden="true"></i>
               </label>
               <div id="requestDocumentList" class="request-file-list" style="display:none;" aria-live="polite"></div>
-              <small id="requestDocumentHelp">Hospital request, referral, or replacement document. JPG, PNG, or PDF up to 20 MB. Only you and authorized coordinators can view it.</small>
+              <small id="requestDocumentHelp">Attach up to five supporting documents, such as hospital request forms,
+                referrals, or replacement slips. JPG, PNG, or PDF only; up to 20 MB per file. Only you and authorized
+                coordinators can view them.</small>
             </div>
           </fieldset>
-          <p class="request-review-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Your request is sent privately to the blood bank admin. It is not published as a community request.</p>
-          <div id="requestMsg" class="form-msg" role="status" aria-live="polite"></div>
+          <p class="request-review-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Your request is sent
+            privately to the blood bank admin. It is not published as a community request.</p>
           <div class="modal-footer">
-            <button type="button" class="btn-cancel" onclick="closeRequestModal()">Cancel</button>
-            <button type="submit" class="btn-submit"><i class="fa-solid fa-paper-plane"></i> Submit Request</button>
+            <div id="requestMsg" class="form-msg" role="status" aria-live="polite"></div>
+            <div class="request-form-actions">
+              <button type="button" class="btn-cancel" onclick="closeRequestModal()">Cancel</button>
+              <button type="submit" class="btn-submit"><i class="fa-solid fa-paper-plane"></i> Submit Request</button>
+            </div>
           </div>
         </form>
       </div>
@@ -705,7 +792,8 @@
       <div class="modal delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="deleteReqTitle"
         style="max-width: 420px; width: 92%;">
         <div class="modal-header">
-          <h3 id="deleteReqTitle"><i id="requestActionTitleIcon" class="fa-solid fa-trash" style="color: var(--accent, #800000);"></i> <span id="requestActionTitle">Delete Blood Request</span></h3>
+          <h3 id="deleteReqTitle"><i id="requestActionTitleIcon" class="fa-solid fa-trash"
+              style="color: var(--accent, #800000);"></i> <span id="requestActionTitle">Delete Blood Request</span></h3>
           <button type="button" class="modal-close" onclick="closeDeleteRequestModal()"
             aria-label="Close delete modal">&times;</button>
         </div>
@@ -714,20 +802,24 @@
             style="width: 56px; height: 56px; border-radius: 50%; background: #ffe3e3; color: var(--accent, #800000); display: grid; place-items: center; font-size: 1.5rem; margin: 0 auto 16px auto;">
             <i class="fa-solid fa-triangle-exclamation"></i>
           </div>
-          <h4 id="requestActionHeading" style="font-size: 1.15rem; font-weight: 700; color: #1e293b; margin: 0 0 8px 0;">Delete this request?</h4>
-          <p id="requestActionMessage" style="font-size: 0.9rem; color: #64748b; margin: 0; line-height: 1.5;">This permanently removes the request and cannot be undone.</p>
+          <h4 id="requestActionHeading"
+            style="font-size: 1.15rem; font-weight: 700; color: #1e293b; margin: 0 0 8px 0;">Delete this request?</h4>
+          <p id="requestActionMessage" style="font-size: 0.9rem; color: #64748b; margin: 0; line-height: 1.5;">This
+            permanently removes the request and cannot be undone.</p>
         </div>
         <div class="modal-footer"
           style="display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid #f1f5f9;">
           <button type="button" class="btn-cancel" onclick="closeDeleteRequestModal()">Cancel</button>
           <button type="button" class="btn-submit" id="confirmDeleteReqBtn"
-            style="background: var(--accent, #800000); border-color: var(--accent, #800000); color: #ffffff;">Yes, delete</button>
+            style="background: var(--accent, #800000); border-color: var(--accent, #800000); color: #ffffff;">Yes,
+            delete</button>
         </div>
       </div>
     </div>
 
     <!-- ===== PRIVATE REQUEST DETAIL MODAL ===== -->
-    <dialog id="bloodReceivedDialog" aria-labelledby="bloodReceivedTitle" aria-describedby="bloodReceivedQuestion bloodReceivedGuidance">
+    <dialog id="bloodReceivedDialog" aria-labelledby="bloodReceivedTitle"
+      aria-describedby="bloodReceivedQuestion bloodReceivedGuidance">
       <div class="receipt-dialog-header">
         <span class="receipt-dialog-icon" aria-hidden="true"><i class="fa-solid fa-hand-holding-heart"></i></span>
         <h3 id="bloodReceivedTitle">Confirm Blood Received</h3>
@@ -756,21 +848,29 @@
           <button type="button" class="btn-cancel" onclick="closeCommunityRequestDetailModal()">Close</button>
         </div>
         <div class="pledge-inline-confirm" id="pledgeUnsuccessfulInline" hidden>
-          <button type="button" class="pledge-inline-confirm__backdrop" onclick="closePledgeUnsuccessfulModal()" aria-label="Cancel unsuccessful pledge confirmation"></button>
-          <section class="pledge-inline-confirm__panel" role="dialog" aria-modal="true" aria-labelledby="pledgeUnsuccessfulTitle" aria-describedby="pledgeUnsuccessfulDescription">
+          <button type="button" class="pledge-inline-confirm__backdrop" onclick="closePledgeUnsuccessfulModal()"
+            aria-label="Cancel unsuccessful pledge confirmation"></button>
+          <section class="pledge-inline-confirm__panel" role="dialog" aria-modal="true"
+            aria-labelledby="pledgeUnsuccessfulTitle" aria-describedby="pledgeUnsuccessfulDescription">
             <div class="pledge-inline-confirm__header">
               <span><i class="fa-solid fa-user-xmark" aria-hidden="true"></i> Unsuccessful Donor Pledge</span>
               <button type="button" onclick="closePledgeUnsuccessfulModal()" aria-label="Close">&times;</button>
             </div>
             <div class="pledge-inline-confirm__body">
-              <span class="pledge-inline-confirm__icon"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></span>
+              <span class="pledge-inline-confirm__icon"><i class="fa-solid fa-triangle-exclamation"
+                  aria-hidden="true"></i></span>
               <h4 id="pledgeUnsuccessfulTitle">Mark this pledge unsuccessful?</h4>
-              <p id="pledgeUnsuccessfulDescription">Use this when the donor did not arrive or could not complete the donation. The pledge will be released and the request will remain available. This does not create donation history or medically defer the donor.</p>
-              <p id="pledgeUnsuccessfulMessage" class="pledge-inline-confirm__message" role="status" aria-live="polite"></p>
+              <p id="pledgeUnsuccessfulDescription">Use this when the donor did not arrive or could not complete the
+                donation. The pledge will be released and the request will remain available. This does not create
+                donation history or medically defer the donor.</p>
+              <p id="pledgeUnsuccessfulMessage" class="pledge-inline-confirm__message" role="status" aria-live="polite">
+              </p>
             </div>
             <div class="pledge-inline-confirm__actions">
-              <button type="button" class="pledge-inline-confirm__submit" id="confirmPledgeUnsuccessful">Mark unsuccessful</button>
-              <button type="button" class="pledge-inline-confirm__cancel" id="cancelPledgeUnsuccessful" onclick="closePledgeUnsuccessfulModal()">Cancel</button>
+              <button type="button" class="pledge-inline-confirm__submit" id="confirmPledgeUnsuccessful">Mark
+                unsuccessful</button>
+              <button type="button" class="pledge-inline-confirm__cancel" id="cancelPledgeUnsuccessful"
+                onclick="closePledgeUnsuccessfulModal()">Cancel</button>
             </div>
           </section>
         </div>
@@ -841,15 +941,18 @@
           <div class="form-row profile-name-row">
             <div class="form-group">
               <label>First Name <span class="req">*</span></label>
-              <input type="text" name="first_name" id="profileFirstNameInput" required minlength="2" maxlength="50" placeholder="e.g. John" />
+              <input type="text" name="first_name" id="profileFirstNameInput" required minlength="2" maxlength="50"
+                placeholder="e.g. John" />
             </div>
             <div class="form-group">
               <label>Middle Name</label>
-              <input type="text" name="middle_name" id="profileMiddleNameInput" autocomplete="additional-name" maxlength="50" placeholder="Optional (e.g. Santos)" />
+              <input type="text" name="middle_name" id="profileMiddleNameInput" autocomplete="additional-name"
+                maxlength="50" placeholder="Optional (e.g. Santos)" />
             </div>
             <div class="form-group">
               <label>Last Name <span class="req">*</span></label>
-              <input type="text" name="last_name" id="profileLastNameInput" required minlength="2" maxlength="50" placeholder="e.g. Doe" />
+              <input type="text" name="last_name" id="profileLastNameInput" required minlength="2" maxlength="50"
+                placeholder="e.g. Doe" />
             </div>
           </div>
 
@@ -882,11 +985,13 @@
           <div class="form-row">
             <div class="form-group">
               <label>Emergency Contact No.</label>
-              <input type="tel" name="phone" id="profilePhoneInput" maxlength="11" inputmode="numeric" placeholder="e.g. 09123456789" />
+              <input type="tel" name="phone" id="profilePhoneInput" maxlength="11" inputmode="numeric"
+                placeholder="e.g. 09123456789" />
             </div>
             <div class="form-group">
               <label>Address</label>
-              <input type="text" name="address" id="profileAddressInput" maxlength="150" placeholder="e.g. Napo, Loon, Bohol" />
+              <input type="text" name="address" id="profileAddressInput" maxlength="150"
+                placeholder="e.g. Napo, Loon, Bohol" />
             </div>
           </div>
 
@@ -988,7 +1093,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/supabase-client.js?v=20260923mapverification"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/scripts/pages/account-dashboard.js?v=20260923unifiedrequest"></script>
+  <script src="/scripts/pages/account-dashboard.js?v=20260927fulfillmentpill"></script>
   <script src="/pull-to-refresh.js?v=20260906n" defer></script>
 </body>
 

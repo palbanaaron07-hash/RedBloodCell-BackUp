@@ -949,9 +949,9 @@ function openDriveDetailsModal(driveId) {
         </div>
 
         <section class="drive-detail-section drive-donation-section">
-          <h5><i class="fa-solid fa-hand-holding-droplet"></i> Donation availability</h5>
+          <h5><i class="fa-solid fa-hand-holding-droplet"></i> Drive registration</h5>
           <div class="drive-detail-line drive-blood-types-line">
-            <span>Accepted blood types</span>
+            <span>Blood type priority</span>
             <strong>${escapeHtml(focusLabel)}</strong>
           </div>
           <div class="drive-capacity drive-capacity-detail">
@@ -979,10 +979,10 @@ function openDriveDetailsModal(driveId) {
         </section>
         <div id="driveRegistrationMsg" class="form-msg" role="status" aria-live="polite"></div>
         ${isRegistered
-          ? '<button type="button" class="btn-submit" disabled><i class="fa-solid fa-circle-check"></i> You are registered</button>'
-          : (canRegister
-            ? `<button type="button" class="btn-submit" id="registerDriveBtn" onclick="registerForSelectedBloodDrive('${escapeHtml(drive.drive_id)}')"><i class="fa-solid fa-user-plus"></i> Register for this drive</button>`
-            : '')}
+      ? '<button type="button" class="btn-submit" disabled><i class="fa-solid fa-circle-check"></i> You are registered</button>'
+      : (canRegister
+        ? `<button type="button" class="btn-submit" id="registerDriveBtn" onclick="registerForSelectedBloodDrive('${escapeHtml(drive.drive_id)}')"><i class="fa-solid fa-user-plus"></i> Register for this drive</button>`
+        : '')}
       `;
 
   modal.classList.add('active');
@@ -1452,14 +1452,14 @@ function renderDonorDashboard(data) {
             <div class="request-info">
               <strong>Request #${Number(request.request_id)}</strong>
               <span>${isReplacement
-                ? `${formatNumber(request.quantity || 0)} replacement donor(s) · Any eligible blood type`
-                : `${formatNumber(request.quantity || 0)} unit(s) of ${escapeHtml(request.blood_type_needed || '--')}`}</span>
+          ? `${formatNumber(request.quantity || 0)} replacement donor(s) · Any eligible blood type`
+          : `${formatNumber(request.quantity || 0)} unit(s) of ${escapeHtml(request.blood_type_needed || '--')}`}</span>
             </div>
             <div class="request-meta">
               <div class="request-meta-details">
                 ${isReplacement
-                  ? '<span class="badge approved">Replacement</span>'
-                  : `<span class="badge ${escapeHtml(urgency)}">${escapeHtml(urgency.charAt(0).toUpperCase() + urgency.slice(1))}</span>`}
+          ? '<span class="badge approved">Replacement</span>'
+          : `<span class="badge ${escapeHtml(urgency)}">${escapeHtml(urgency.charAt(0).toUpperCase() + urgency.slice(1))}</span>`}
                 <small><i class="fa-regular fa-calendar" aria-hidden="true"></i> ${formatDateShort(request.request_date)}</small>
               </div>
               <button type="button" class="btn-feed-details" onclick="viewMatchingRequest(${Number(request.request_id)}, this)">
@@ -2032,17 +2032,53 @@ try {
   ignoredCommunityIds = new Set(JSON.parse(sessionStorage.getItem('veindrop_ignored_requests') || '[]'));
 } catch (_) { }
 
+let requestModalKeyboardOverlay = null;
+
+function syncRequestModalPosition() {
+  const modal = document.getElementById("requestModal");
+  if (!modal?.classList.contains("active")) return;
+  modal.style.setProperty("--request-modal-top", `${window.visualViewport?.offsetTop || 0}px`);
+}
+
 function openRequestModal() {
   if (!requestSubmissionPending) {
     const form = document.getElementById('requestForm');
     delete form.dataset.requestSaved;
+    delete form.dataset.requestWarning;
     const button = form.querySelector('button[type="submit"]');
     if (button) { button.disabled = false; button.textContent = 'Submit Request'; }
   }
-  document.getElementById('requestModal').classList.add('active');
+  const modal = document.getElementById("requestModal");
+  const mobile = window.matchMedia("(max-width: 540px)").matches;
+  if (mobile) {
+    modal.style.setProperty("--request-modal-height", `${window.innerHeight}px`);
+    const virtualKeyboard = navigator.virtualKeyboard;
+    if (virtualKeyboard && "overlaysContent" in virtualKeyboard) {
+      requestModalKeyboardOverlay = virtualKeyboard.overlaysContent;
+      virtualKeyboard.overlaysContent = true;
+    }
+  }
+  modal.classList.add("active");
+  document.body.classList.add("modal-open");
+  if (mobile) {
+    syncRequestModalPosition();
+    window.visualViewport?.addEventListener("resize", syncRequestModalPosition);
+    window.visualViewport?.addEventListener("scroll", syncRequestModalPosition);
+  }
 }
 function closeRequestModal() {
-  document.getElementById('requestModal').classList.remove('active');
+  const modal = document.getElementById("requestModal");
+  if (modal.contains(document.activeElement)) document.activeElement.blur();
+  modal.classList.remove("active");
+  document.body.classList.remove("modal-open");
+  window.visualViewport?.removeEventListener("resize", syncRequestModalPosition);
+  window.visualViewport?.removeEventListener("scroll", syncRequestModalPosition);
+  modal.style.removeProperty("--request-modal-height");
+  modal.style.removeProperty("--request-modal-top");
+  if (requestModalKeyboardOverlay !== null && navigator.virtualKeyboard) {
+    navigator.virtualKeyboard.overlaysContent = requestModalKeyboardOverlay;
+    requestModalKeyboardOverlay = null;
+  }
   document.getElementById('requestForm').reset();
   selectedRequestDocuments = [];
   if (typeof syncRequestTypeFields === 'function') syncRequestTypeFields();
@@ -2239,8 +2275,8 @@ function renderCommunityCard(r) {
                 <div>
                   <span class="feed-looking-label">${isReplacement ? 'REPLACEMENT DONORS NEEDED' : 'LOOKING FOR'}</span>
                   <h3 class="feed-blood-title">${isReplacement
-                    ? `${units} replacement donor${units !== 1 ? 's' : ''} · Any eligible blood type`
-                    : `${units} unit${units !== 1 ? 's' : ''} of ${bloodTypeStr} blood`}</h3>
+      ? `${units} replacement donor${units !== 1 ? 's' : ''} · Any eligible blood type`
+      : `${units} unit${units !== 1 ? 's' : ''} of ${bloodTypeStr} blood`}</h3>
                 </div>
               </div>
               ${isUrgent ? `<span class="feed-urgent-badge"><i class="fa-solid fa-triangle-exclamation"></i> URGENT</span>` : ''}
@@ -2334,27 +2370,23 @@ function openCommunityRequestDetails(reqId) {
   const description = escapeHtml(req.notes || req.note || 'No additional notes provided.');
   const headerStatus = getRequestHeaderStatus(req);
   const verificationSupport = req.verification_support || null;
-  const requesterVerificationLabels = {
-    uploaded_document: 'Supporting document reviewed',
-    physical_document: 'Physical document reviewed in person',
-    facility_confirmation: 'Confirmed with facility representative',
-    other: 'Other documented verification'
-  };
+  const verificationNote = String(verificationSupport?.verification_note || '')
+    .replace(/^Coordinator approved this request using Verify and Approve Request\.\s*/i, '')
+    .trim();
   const allDocs = getPatientRequestAllDocuments(req);
   const privateSupportSummary = (verificationSupport || allDocs.length > 0)
     ? `<section class="patient-private-support" id="patientPrivateSupportContainer">
         <strong class="patient-private-support__title"><i class="fa-solid fa-lock" aria-hidden="true"></i> Verification information</strong>
         <div class="patient-private-support__details">
           <div class="patient-private-support__item"><span>Facility contact</span><b>${escapeHtml(verificationSupport?.facility_contact || 'Not provided')}</b></div>
-          <div class="patient-private-support__item"><span>Admin verification</span><b>${escapeHtml(verificationSupport?.verification_method ? (requesterVerificationLabels[verificationSupport.verification_method] || 'Verified') : 'Pending')}</b></div>
-          ${verificationSupport?.verification_note ? `<div class="patient-private-support__item patient-private-support__item--wide"><span>Admin note</span><b>${escapeHtml(verificationSupport.verification_note)}</b></div>` : ''}
+          ${verificationNote ? `<div class="patient-private-support__item patient-private-support__item--wide"><span>Verification Note</span><b>${escapeHtml(verificationNote)}</b></div>` : ''}
         </div>
         <div class="patient-private-support__docs-wrap" style="margin-top:10px;">
           ${allDocs.length > 0
-            ? `<div id="patientSupportingDocsList" class="patient-supporting-docs-list">
+      ? `<div id="patientSupportingDocsList" class="patient-supporting-docs-list">
                 ${allDocs.map((doc) => `<div class="patient-doc-item patient-doc-item--loading"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Preparing ${escapeHtml(doc.file_name || 'document')}...</span></div>`).join('')}
               </div>`
-            : '<span class="patient-private-support__document-state">No supporting document attached.</span>'}
+      : '<span class="patient-private-support__document-state">No supporting document attached.</span>'}
         </div>
       </section>`
     : '';
@@ -2439,7 +2471,7 @@ function openCommunityRequestDetails(reqId) {
           }
         }
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }
 }
 const donorSupportPreferenceLabels = {
@@ -2695,22 +2727,6 @@ function getRequestHeaderStatus(request) {
   };
   return statuses[effectiveStatus] || statuses.pending;
 }
-function getFulfillmentAttribution(request, lifecycle) {
-  if (lifecycle?.status !== 'fulfilled') return null;
-
-  const fulfilledByRequester = Boolean(request?.recipient_received_at);
-  return fulfilledByRequester
-    ? {
-        source: 'requester',
-        label: 'Marked fulfilled by requester',
-        icon: 'fa-user-check'
-      }
-    : {
-        source: 'admin',
-        label: 'Marked fulfilled by admin',
-        icon: 'fa-user-shield'
-      };
-}
 
 function renderRequestCard(r) {
   const reqId = r.id || r.request_id;
@@ -2721,7 +2737,6 @@ function renderRequestCard(r) {
   const submittedTime = formatTimeAgo(r.created_at || r.request_date);
   const neededTime = escapeHtml(r.needed_time || 'As soon as available');
   const headerStatus = getRequestHeaderStatus(r);
-  const fulfillmentAttribution = getFulfillmentAttribution(r, getCommunityLifecycle(r));
   const operationalStatus = String(r.operational_status || r.status_raw || 'pending').toLowerCase();
   const verificationStatus = String(r.verification_status || 'pending').toLowerCase();
   const isClosedHistory = ['cancelled', 'canceled', 'rejected', 'fulfilled'].includes(operationalStatus);
@@ -2743,7 +2758,6 @@ function renderRequestCard(r) {
             </div>
             <span class="request-arrangement-text">Private request</span>
             <span class="feed-post-time"><i class="fa-regular fa-clock"></i> Submitted ${submittedTime}</span>
-            ${fulfillmentAttribution ? `<span class="request-fulfillment-attribution ${fulfillmentAttribution.source}"><i class="fa-solid ${fulfillmentAttribution.icon}" aria-hidden="true"></i> ${fulfillmentAttribution.label}</span>` : ''}
           </div>
         </div>
         ${hasRequestMenu ? `<div class="my-req-menu-wrap" style="position:relative;">
@@ -3268,7 +3282,7 @@ document.getElementById('requestForm').addEventListener('submit', async (e) => {
   requestSubmissionPending = true;
   if (button) button.disabled = true;
   let saved = form.dataset.requestSaved === 'true';
-  let submissionWarning = '';
+  let submissionWarning = form.dataset.requestWarning || '';
   let refreshTimer;
   const slowTimer = setTimeout(() => {
     msg.textContent = 'Still waiting for confirmation. You may close this form and check My Requests. Do not submit again while this request is pending.';
@@ -3290,6 +3304,7 @@ document.getElementById('requestForm').addEventListener('submit', async (e) => {
       if (result?.error) throw new Error(result.error.message || 'Failed to submit request.');
       if (!result?.data?.request_id) throw new Error('Submission not confirmed. Check My Requests before trying again.');
       submissionWarning = String(result.warning || '');
+      form.dataset.requestWarning = submissionWarning;
       saved = true;
       form.dataset.requestSaved = 'true';
     }
@@ -3310,11 +3325,15 @@ document.getElementById('requestForm').addEventListener('submit', async (e) => {
       })
     ]);
     if (loaded === false) throw new Error('List refresh failed.');
-    closeRequestModal();
-    if (submissionWarning) showToast(submissionWarning);
+    if (submissionWarning) {
+      msg.textContent = `Request saved. ${submissionWarning} Contact the coordinator to provide the missing information; do not submit a duplicate request.`;
+      msg.className = 'form-msg error';
+    } else {
+      closeRequestModal();
+    }
   } catch (err) {
     msg.textContent = saved
-      ? 'Your request was saved, but the list could not refresh. Click Check My Requests below; do not submit a duplicate.'
+      ? `Your request was saved, but the list could not refresh. ${submissionWarning} Click Check My Requests below; do not submit a duplicate.`
       : (err?.message || 'Submission not confirmed. Check My Requests before trying again.');
     msg.className = 'form-msg error';
   } finally {

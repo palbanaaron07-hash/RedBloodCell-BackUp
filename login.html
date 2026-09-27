@@ -10,6 +10,7 @@
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/login.css?v=20260907fix" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="/connection-status.js" defer></script>
 </head>
 
 <body>
@@ -29,7 +30,7 @@
           </a>
           <h1 class="form-title">Login</h1>
 
-          <form action="#" method="POST" class="login-form" novalidate>
+          <form action="#" method="POST" class="login-form" data-requires-online="sign in" novalidate>
             <div class="form-group">
               <label for="email">Email or Username</label>
               <div class="input-wrapper">

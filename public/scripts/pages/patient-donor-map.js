@@ -301,11 +301,7 @@ function isDonorMatchingFilters(donor, allowedTypes, filterLocation, filterAvail
 }
 
 function donorAvailabilityBadge(donor) {
-  const status = String(donor?.donor_status || '').toLowerCase();
-  if (status === 'approved') {
-    return '<span class="blood-status-badge available"><i class="fa-solid fa-circle-check"></i> Screened &amp; Ready</span>';
-  }
-  return '<span class="blood-status-badge available"><i class="fa-solid fa-circle-check"></i> Eligible to Donate</span>';
+  return '';
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -347,13 +343,11 @@ function makeAreaSummaryIcon(count, bloodTypes) {
 function renderDonorPinPopup(donor, zone) {
   const bloodType = String(donor?.blood_type || '').trim().toUpperCase() || '--';
   const location = zone?.area || donor?.map_area || donor?.area || 'Bohol';
-  const badgeHtml = donorAvailabilityBadge(donor);
 
   return `
-    <div style="padding:12px 14px;min-width:200px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+    <div style="padding:12px 14px;min-width:180px;">
+      <div style="display:flex;align-items:center;margin-bottom:6px;">
         <span class="blood-type-pill"><i class="fa-solid fa-droplet"></i> ${escapeHtml(bloodType)}</span>
-        ${badgeHtml}
       </div>
       <div style="font-size:0.82rem;color:#475569;display:flex;flex-direction:column;gap:3px;">
         <span style="font-weight:700;color:#0f172a;font-size:0.88rem;">

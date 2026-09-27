@@ -41,7 +41,6 @@
 .request-detail-summary {
   padding: 18px;
   border: 1px solid #e2e8f0;
-  border-left: 5px solid var(--blood-rich, #800000);
   border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, .04);
@@ -91,7 +90,8 @@
 #adminRequestDetailModal .modal-footer { flex: 0 0 auto; padding: 16px 22px; border-top: 1px solid #e2e8f0; gap: 14px; background: #ffffff; align-items: center; }
 #adminRequestDetailModal .btn-cancel { flex-shrink: 0; border: 1px solid #cbd5e1; color: #334155; background: #ffffff; border-radius: 9px; font-weight: 600; }
 #adminRequestDetailModal .btn-cancel:hover { background: #f1f5f9; color: #0f172a; }
-#adminRequestDetailActions { flex: 1; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+#adminRequestDetailActions { display: flex; flex: 1; min-width: 0; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+#adminRequestDetailModal .modal-footer button { min-height: 40px; }
 #adminRequestDetailActions > p { margin: 0; font-size: .78rem !important; line-height: 1.5; color: #64748b !important; }
 .btn-verify-request {
   display: inline-flex;
@@ -476,28 +476,6 @@
   color: #94a3b8;
 }
 
-/* Details button in card */
-.request-card .btn-row-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border-radius: 7px;
-  font-weight: 700;
-  font-size: 0.76rem;
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  color: #1e293b;
-  cursor: pointer;
-  transition: all .15s ease;
-}
-
-.request-card .btn-row-action:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  color: var(--blood-rich, #800000);
-}
-
 /* ── Pagination Bar ──────────────────────────────────────── */
 .requests-pagination-bar {
   display: flex;
@@ -566,3 +544,21 @@
     flex: 1 1 140px;
   }
 }
+
+/* Keep the reason field hidden when verification or fulfillment does not use it. */
+#requestStatusReasonGroup[hidden] { display: none !important; }
+
+/* Manual request archives */
+.request-archive-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:10px 18px; border-bottom:1px solid #e2e8f0; }
+.request-archive-toolbar[hidden], .request-selection-actions[hidden] { display:none; }
+.request-selection-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.request-archive-toolbar button { min-height:32px; padding:6px 10px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; color:#334155; font-size:.77rem; font-weight:700; cursor:pointer; }
+.request-archive-toolbar button:hover:not(:disabled) { background:#f8fafc; border-color:#94a3b8; }
+.request-archive-toolbar button:disabled { opacity:.5; cursor:default; }
+.request-archive-toolbar .request-archive-apply { color:#fff; background:#800000; border-color:#800000; }
+.request-archive-toolbar .request-archive-apply:hover:not(:disabled) { background:#660000; border-color:#660000; }
+.request-selection-actions span { color:#475569; font-size:.78rem; font-weight:700; }
+.request-archive-message { color:#475569; font-size:.77rem; }
+.request-card.request-card-selected { border-color:#800000; background:#fff9f9; }
+.request-select-checkbox { flex:0 0 auto; width:18px; height:18px; margin:0; accent-color:#800000; cursor:pointer; }
+@media (max-width: 600px) { .request-archive-toolbar { padding:9px 12px; } }

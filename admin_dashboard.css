@@ -2124,25 +2124,6 @@ img {
   font-family: 'Sora', sans-serif;
 }
 
-/* Row action button */
-.btn-row-action {
-  padding: 5px 10px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--gray-200);
-  background: var(--white);
-  color: var(--gray-700);
-  font-size: .74rem;
-  font-weight: 600;
-  transition: all var(--transition);
-}
-
-.btn-row-action:hover {
-  border-color: var(--blood-rich);
-  color: var(--blood-rich);
-  background: var(--blood-mist);
-  box-shadow: 0 1px 4px rgba(139, 0, 0, .1);
-}
-
 /* ============================================================
    REQUEST CARDS
    ============================================================ */
@@ -2202,41 +2183,6 @@ img {
 .request-info span {
   font-size: .73rem;
   color: var(--gray-500);
-}
-
-.request-meta {
-  text-align: right;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.request-meta-badges {
-  display: flex;
-  justify-content: flex-start;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
-.request-meta .badge {
-  margin-bottom: 0;
-}
-
-.request-meta small {
-  display: block;
-  font-size: .67rem;
-  color: var(--gray-400);
-}
-
-.request-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  max-width: 360px;
 }
 
 /* ============================================================
@@ -4117,22 +4063,6 @@ img {
     flex: 1 1 calc(100% - 56px);
   }
 
-  .request-meta {
-    width: calc(100% - 56px);
-    margin-left: 56px;
-    align-items: flex-start;
-    text-align: left;
-  }
-
-  .request-meta-badges,
-  .request-actions {
-    justify-content: flex-start;
-  }
-
-  .request-actions {
-    max-width: none;
-  }
-
   .reports-chart-wrap,
   .reports-chart-wrap canvas {
     min-height: 240px;
@@ -4744,7 +4674,7 @@ img {
 .drive-instructions-card {
   background: #ffffff;
   border: 1.5px solid #f0e4e6;
-  border-left: 4px solid #b91c1c;
+
   border-radius: 14px;
   padding: 16px 18px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
@@ -4965,4 +4895,93 @@ img {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+/* Shared first-load placeholders for asynchronous admin lists and tables. */
+.admin-skeleton-list { padding: 8px 0; width: 100%; background: #fff; }
+.data-table tbody tr.admin-skeleton-table-row,
+.data-table tbody tr.admin-skeleton-table-row:hover,
+.data-table tbody tr.admin-skeleton-table-row > td { background: #fff; cursor: default; }
+.admin-skeleton-row { display: flex; align-items: center; gap: 16px; padding: 20px 12px; border-bottom: 1px solid #e2e8f0; }
+.admin-skeleton-row:last-child { border-bottom: 0; }
+.admin-skeleton { display: block; background: linear-gradient(100deg, #c5cdd8 20%, #e8edf3 45%, #c5cdd8 70%); background-size: 220% 100%; animation: admin-skeleton-shimmer 1.6s ease-in-out infinite; border-radius: 6px; }
+.admin-skeleton-icon { width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; }
+.admin-skeleton-copy { flex: 1; min-width: 0; }
+.admin-skeleton-line { width: 62%; max-width: 340px; height: 13px; margin: 7px 0; }
+.admin-skeleton-line.short { width: 40%; max-width: 220px; height: 10px; }
+.admin-skeleton-pill { width: 72px; height: 25px; border-radius: 20px; }
+.admin-loading-label { display: block; padding: 8px 12px 4px; color: #475569; font-size: .8125rem; font-weight: 600; text-align: left; }
+.admin-load-error { padding: 28px 12px; text-align: center; color: #64748b; }
+@keyframes admin-skeleton-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .admin-skeleton { animation: none; } }
+@media (max-width: 480px) { .admin-skeleton-row { gap: 10px; padding: 16px 4px; } .admin-skeleton-pill { width: 48px; } }
+
+/* Native notification dialog keeps keyboard focus inside the confirmation. */
+:is(#clearNotificationsDialog, #deleteNotificationDialog) {
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  padding: 0;
+  margin: auto;
+  overflow-y: auto;
+}
+:is(#clearNotificationsDialog, #deleteNotificationDialog)::backdrop {
+  background: rgba(15, 0, 0, .55);
+  backdrop-filter: blur(6px);
+}
+:is(#clearNotificationsDialog, #deleteNotificationDialog) button:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+/* Neutral surfaces for the notification deletion confirmation. */
+:is(#clearNotificationsDialog, #deleteNotificationDialog) {
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, .22), 0 0 0 1px rgba(15, 23, 42, .08);
+}
+:is(#clearNotificationsDialog, #deleteNotificationDialog)::backdrop {
+  background: rgba(15, 23, 42, .5);
+}
+:is(#clearNotificationsDialog, #deleteNotificationDialog) .delete-drive-header,
+:is(#clearNotificationsDialog, #deleteNotificationDialog) .delete-drive-footer {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+:is(#clearNotificationsDialog, #deleteNotificationDialog) .delete-drive-icon-wrap {
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: none;
+}
+:is(#clearNotificationsDialog, #deleteNotificationDialog) .delete-drive-title {
+  color: #0f172a;
+}
+:is(#clearNotificationsDialog, #deleteNotificationDialog) .delete-drive-subtitle {
+  color: #64748b;
+  opacity: 1;
+}
+:is(#clearNotificationsDialog, #deleteNotificationDialog) .delete-drive-warning {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+:is(#clearNotificationsDialog, #deleteNotificationDialog) .delete-drive-btn-confirm,
+:is(#clearNotificationsDialog, #deleteNotificationDialog) .delete-drive-btn-confirm:hover {
+  box-shadow: none;
+}
+
+/* Keep notification actions visible on touch screens and keyboard navigation. */
+.notif-dismiss-btn { opacity: 1; width: 32px; height: 32px; }
+.notif-dismiss-btn:hover, .notif-dismiss-btn:focus-visible { background: #f1f5f9; color: #334155; }
+.notif-dismiss-btn:focus-visible { outline: 2px solid #64748b; outline-offset: 2px; }
+
+/* Fade notifications without creating temporary scroll overflow. */
+@keyframes notificationFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+#section-notifications.active,
+#section-notifications .notif-item {
+  animation-name: notificationFadeIn;
+}
+@media (prefers-reduced-motion: reduce) {
+  #section-notifications.active,
+  #section-notifications .notif-item { animation: none; }
 }

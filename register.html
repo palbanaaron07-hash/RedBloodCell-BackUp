@@ -10,6 +10,7 @@
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/register.css?v=20260923bohol" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="/connection-status.js" defer></script>
 </head>
 
 <body>
@@ -25,7 +26,7 @@
         <i class="fa-solid fa-arrow-left-long"></i>
       </a>
 
-      <form action="#" method="POST" class="register-form" novalidate>
+      <form action="#" method="POST" class="register-form" data-requires-online="create your account" novalidate>
 
           <!-- Alert message -->
           <div id="alertBox" class="toast-alert" role="status" aria-live="polite"></div>

@@ -33,7 +33,7 @@ assert.match(client, /'image\/jpeg': 'jpg'/);
 assert.match(client, /'image\/png': 'png'/);
 assert.match(client, /'application\/pdf': 'pdf'/);
 assert.match(client, /createSignedUrl\(path, 300\)/);
-assert.match(client, /return \{ data, error: null, warning: supportResult\.error\.message \}/);
+assert.match(client, /return \{ data, error: null, warning: warnings\.join/);
 
 const communityStart = client.indexOf('async function listCommunityBloodRequests()');
 const communityEnd = client.indexOf('async function createDonorPledge', communityStart);

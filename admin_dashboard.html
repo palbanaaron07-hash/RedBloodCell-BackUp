@@ -8,11 +8,12 @@
   <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
   <title>Coordinator Dashboard - BloodConnect</title>
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/admin_dashboard.css?v=20260923donordirectory" />
-  <link rel="stylesheet" href="/styles/components/admin-request-details.css?v=20260924nopink" />
+  <link rel="stylesheet" href="/admin_dashboard.css?v=20260927archivecleanup" />
+  <link rel="stylesheet" href="/styles/components/admin-request-details.css?v=20260927archive3" />
   <link rel="stylesheet" href="/styles/components/admin-donor-filters.css?v=20260923modalhero" />
   <link rel="stylesheet" href="/styles/components/shared-selects.css?v=20260912a" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="/connection-status.js" defer></script>
 </head>
 
 <body>
@@ -324,6 +325,7 @@
             <table class="data-table" id="donorTable">
               <thead>
                 <tr>
+                  <th class="col-donor-id">Donor ID</th>
                   <th>Donor</th>
                   <th>Blood Type</th>
                   <th>Emergency Contact No.</th>
@@ -334,7 +336,7 @@
               </thead>
               <tbody id="donorTableBody">
                 <tr>
-                  <td colspan="6" style="text-align:center;color:var(--slate-400);padding:32px;">Loading donors...</td>
+                  <td colspan="7" style="text-align:center;color:var(--slate-400);padding:32px;">Loading donors...</td>
                 </tr>
               </tbody>
             </table>
@@ -351,6 +353,10 @@
         <div class="panel full-width" id="requestsPanel">
           <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
             <h3><i class="fa-solid fa-hand-holding-medical" style="color:var(--blood-rich);"></i> Blood Requests</h3>
+            <div class="panel-actions" role="group" aria-label="Request views">
+              <button type="button" class="panel-btn active" data-request-view="active" aria-pressed="true" onclick="switchAdminRequestsTab('active')">Active</button>
+              <button type="button" class="panel-btn" data-request-view="archives" aria-pressed="false" onclick="switchAdminRequestsTab('archives')"><i class="fa-solid fa-box-archive" aria-hidden="true"></i> Archives</button>
+            </div>
           </div>
           <div class="requests-toolbar">
             <p id="requestsFilterSummary" class="requests-filter-summary" role="status" aria-live="polite"></p>
@@ -359,8 +365,10 @@
                 <select id="requestStatusFilter">
                   <option value="all">All statuses</option>
                   <option value="pending">Pending</option>
-                  <option value="processing">In Review / Processing</option>
+                  <option value="approved">In Review / Processing</option>
+                  <option value="needs_clarification">Needs clarification</option>
                   <option value="fulfilled">Fulfilled / Completed</option>
+                  <option value="expired">Expired</option>
                   <option value="rejected">Rejected</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
@@ -378,15 +386,18 @@
                   <option>O-</option>
                 </select>
               </label>
-              <label>Type
-                <select id="requestTypeFilter">
-                  <option value="all">All types</option>
-                  <option value="emergency_donor">Direct / Emergency</option>
-                  <option value="replacement">Hospital Replacement</option>
-                </select>
-              </label>
               <button type="button" class="panel-btn" id="clearRequestFilters" disabled>Clear filters</button>
             </div>
+          </div>
+          <div id="requestArchiveToolbar" class="request-archive-toolbar" hidden>
+            <button type="button" id="requestSelectionToggle" class="request-archive-select-toggle" onclick="toggleRequestSelectionMode()"><i class="fa-regular fa-square-check" aria-hidden="true"></i> Select requests</button>
+            <div id="requestSelectionActions" class="request-selection-actions" hidden>
+              <span id="requestSelectionCount" role="status" aria-live="polite">0 selected</span>
+              <button type="button" id="requestSelectAllToggle" onclick="toggleSelectAllRequests()">Select all</button>
+              <button type="button" id="requestArchiveBulkButton" class="request-archive-apply" onclick="archiveSelectedRequests()" disabled>Archive selected</button>
+              <button type="button" onclick="toggleRequestSelectionMode(false)">Cancel</button>
+            </div>
+            <span id="requestArchiveMessage" class="request-archive-message" role="status" aria-live="polite"></span>
           </div>
           <div class="panel-body" style="padding: 12px 0;">
             <div class="request-list" id="requestsSectionList" style="padding: 0 18px;">
@@ -724,6 +735,7 @@
 
       <!-- ===== SECTION: NOTIFICATIONS ===== -->
       <div class="page-section" id="section-notifications">
+        <p id="notificationActionError" role="alert" hidden style="padding:12px 16px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#b91c1c;"></p>
 
         <div class="section-heading">
           <div style="display:flex;gap:10px;align-items:center;">
@@ -1326,7 +1338,7 @@
               <input type="text" id="requestStatusTransition" readonly />
             </div>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="requestStatusReasonGroup">
             <label><span id="requestStatusReasonLabel">Reason</span> <span class="req">*</span></label>
             <select id="requestStatusReason" required>
               <option value="">Select a reason</option>
@@ -1522,7 +1534,7 @@
             <input type="text" id="driveAddress" name="address" placeholder="Street, barangay, municipality" />
           </div>
           <div class="form-group">
-            <label for="driveFocusType">Focus blood type</label>
+            <label for="driveFocusType">Blood type priority</label>
             <select id="driveFocusType" name="focus_type">
               <option value="All">All blood types</option>
               <option value="A+">A+</option>
@@ -1534,11 +1546,12 @@
               <option value="O+">O+</option>
               <option value="O-">O-</option>
             </select>
+            <small>Highlights the greatest need. People of all blood types may register; prior donor approval is not required.</small>
           </div>
           <div class="form-group">
-            <label for="driveNotes">Donor instructions <span class="req">*</span></label>
+            <label for="driveNotes">Participant instructions <span class="req">*</span></label>
             <textarea id="driveNotes" name="notes" rows="3" maxlength="1000"
-              placeholder="What donors should bring or know before arriving" required></textarea>
+              placeholder="What participants should bring or know before arriving" required></textarea>
           </div>
           <div id="scheduleDriveMsg" class="form-msg" role="status" aria-live="polite"></div>
           <div class="modal-footer">
@@ -1621,7 +1634,7 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="editDriveFocusType">Focus blood type</label>
+              <label for="editDriveFocusType">Blood type priority</label>
               <select id="editDriveFocusType" name="focus_type">
                 <option value="All">All blood types</option>
                 <option value="A+">A+</option>
@@ -1633,6 +1646,7 @@
                 <option value="O+">O+</option>
                 <option value="O-">O-</option>
               </select>
+            <small>Highlights the greatest need. People of all blood types may register; prior donor approval is not required.</small>
             </div>
             <div class="form-group">
               <label for="editDriveStatus">Status</label>
@@ -1646,9 +1660,9 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="editDriveNotes">Donor instructions <span class="req">*</span></label>
+            <label for="editDriveNotes">Participant instructions <span class="req">*</span></label>
             <textarea id="editDriveNotes" name="notes" rows="3" maxlength="1000"
-              placeholder="What donors should bring or know before arriving" required></textarea>
+              placeholder="What participants should bring or know before arriving" required></textarea>
           </div>
           <div id="editDriveMsg" class="form-msg" role="status" aria-live="polite"></div>
           <div class="modal-footer">
@@ -1711,6 +1725,47 @@
       </div>
     </div>
 
+    <dialog id="clearNotificationsDialog" class="modal delete-drive-modal" aria-labelledby="clearNotificationsTitle" aria-describedby="clearNotificationsDescription">
+      <div class="modal-header delete-drive-header">
+        <div class="delete-drive-header-content">
+          <div class="delete-drive-icon-wrap"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></div>
+          <div><h3 id="clearNotificationsTitle" class="delete-drive-title">Delete All Notifications?</h3>
+            <p class="delete-drive-subtitle">This action cannot be undone</p></div>
+        </div>
+        <button type="button" class="modal-close" data-cancel-clear aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body delete-drive-body">
+        <p id="clearNotificationsDescription" class="delete-drive-prompt">Are you sure you want to permanently delete all your notifications?</p>
+        <div class="delete-drive-warning"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>Read and unread notifications will be permanently removed.</span></div>
+        <p id="clearNotificationsError" class="form-msg" role="alert" hidden></p>
+      </div>
+      <div class="modal-footer delete-drive-footer">
+        <button type="button" class="delete-drive-btn-keep" data-cancel-clear autofocus>Cancel</button>
+        <button type="button" class="delete-drive-btn-confirm" id="confirmClearNotifications">Delete All</button>
+      </div>
+    </dialog>
+
+    <dialog id="deleteNotificationDialog" class="modal delete-drive-modal" aria-labelledby="deleteNotificationTitle" aria-describedby="deleteNotificationDescription">
+      <div class="modal-header delete-drive-header">
+        <div class="delete-drive-header-content">
+          <div class="delete-drive-icon-wrap"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></div>
+          <div><h3 id="deleteNotificationTitle" class="delete-drive-title">Delete Notification?</h3>
+            <p class="delete-drive-subtitle">This action cannot be undone</p></div>
+        </div>
+        <button type="button" class="modal-close" data-cancel-delete-notification aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body delete-drive-body">
+        <p id="deleteNotificationDescription" class="delete-drive-prompt">Are you sure you want to permanently delete this notification?</p>
+        <p id="deleteNotificationPreview" class="delete-drive-prompt"></p>
+        <div class="delete-drive-warning"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>This notification will be permanently removed.</span></div>
+        <p id="deleteNotificationError" class="form-msg" role="alert" hidden></p>
+      </div>
+      <div class="modal-footer delete-drive-footer">
+        <button type="button" class="delete-drive-btn-keep" data-cancel-delete-notification autofocus>Cancel</button>
+        <button type="button" class="delete-drive-btn-confirm" id="confirmDeleteNotification">Delete</button>
+      </div>
+    </dialog>
+
     <!-- FOOTER -->
     <footer class="dashboard-footer">
       &copy; 2026 BloodConnect - Web-Based Blood Donation &amp; Inventory Management System. All rights reserved.
@@ -1723,7 +1778,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="/supabase-client.js?v=20260923mapverification"></script>
-  <script src="/scripts/pages/admin-dashboard.js?v=20260923mapmunicipality"></script>
+  <script src="/scripts/pages/admin-request-archive.js?v=20260927c"></script>
+  <script src="/scripts/pages/admin-dashboard.js?v=20260927verifierdisplay"></script>
 
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>

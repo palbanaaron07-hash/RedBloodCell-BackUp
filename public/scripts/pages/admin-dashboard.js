@@ -1,3 +1,80 @@
+let adminRequestDetailsVersion = 0;
+// Keep initial loading distinct from a successfully loaded empty collection.
+const adminLoadStates = new Map();
+const adminLoadTargets = {
+  requests: [['requestsSectionList', 0]],
+  donors: [['donorTableBody', 6]],
+  inventory: [['inventoryList', 0]],
+  drives: [['drivesTableBody', 7]],
+  reports: [['reportsRequestBreakdownBody', 2], ['reportsInventoryBreakdownBody', 3]],
+  overviewInventory: [['overviewInventoryChart', 0]],
+  expirations: [['overviewExpirationsBody', 6], ['inventoryExpirationsBody', 6]]
+};
+
+function adminSkeletonMarkup(columns = 0) {
+  const row = '<div class="admin-skeleton-row" aria-hidden="true"><span class="admin-skeleton admin-skeleton-icon"></span><div class="admin-skeleton-copy"><span class="admin-skeleton admin-skeleton-line"></span><span class="admin-skeleton admin-skeleton-line short"></span></div><span class="admin-skeleton admin-skeleton-pill"></span></div>';
+  const content = `<div class="admin-skeleton-list" role="status" aria-label="Loading records"><span class="admin-loading-label">Loading records…</span>${row.repeat(4)}</div>`;
+  return columns ? `<tr class="admin-skeleton-table-row"><td colspan="${columns}">${content}</td></tr>` : content;
+}
+
+function showAdminSkeleton(key) {
+  for (const [id, columns] of adminLoadTargets[key]) {
+    const element = document.getElementById(id);
+    if (element) {
+      element.setAttribute('aria-busy', 'true');
+      element.innerHTML = adminSkeletonMarkup(columns);
+    }
+  }
+  const summary = document.getElementById(key === 'requests' ? 'requestsFilterSummary' : key === 'donors' ? 'donorFilterSummary' : '');
+  if (summary) summary.textContent = 'Loading records…';
+}
+
+function adminLoadReady(key) {
+  const state = adminLoadStates.get(key) || {};
+  state.ready = true;
+  state.error = false;
+  adminLoadStates.set(key, state);
+}
+
+function adminRenderBlocked(key) {
+  const state = adminLoadStates.get(key);
+  if (state?.ready) return false;
+  if (!state?.error) showAdminSkeleton(key);
+  return true;
+}
+
+function loadAdminSection(key, loader) {
+  const state = adminLoadStates.get(key) || { ready: false };
+  if (state.promise) return state.promise;
+  state.error = false;
+  adminLoadStates.set(key, state);
+  if (!state.ready) showAdminSkeleton(key);
+  // Share an in-flight fetch between startup, navigation and realtime refreshes.
+  state.promise = Promise.resolve().then(loader).catch((error) => {
+    console.error(`Failed to load ${key}:`, error);
+    state.error = true;
+  }).finally(() => {
+    for (const [id, columns] of adminLoadTargets[key]) {
+      const element = document.getElementById(id);
+      if (!element) continue;
+      element.removeAttribute('aria-busy');
+      if (element.querySelector('.admin-skeleton-list')) {
+        const message = '<div class="admin-load-error" role="status">Unable to load records. Reopen this section to retry.</div>';
+        element.innerHTML = columns ? `<tr><td colspan="${columns}">${message}</td></tr>` : message;
+      }
+    }
+    if (!state.ready) {
+      state.error = true;
+      const summary = document.getElementById(key === 'requests' ? 'requestsFilterSummary' : key === 'donors' ? 'donorFilterSummary' : '');
+      if (summary) summary.textContent = 'Unable to load records';
+    }
+    state.promise = null;
+  });
+  return state.promise;
+}
+
+Object.keys(adminLoadTargets).forEach(showAdminSkeleton);
+
 const sidebar = document.getElementById('sidebar');
 const overlay = document.getElementById('sidebarOverlay');
 const toggle = document.getElementById('menuToggle');
@@ -42,7 +119,6 @@ let donorCache = [];
 let requestFilter = 'all';
 let requestStatusFilterValue = 'all';
 let requestBloodTypeFilterValue = 'all';
-let requestTypeFilterValue = 'all';
 let requestsPageSize = 10;
 let requestsVisibleCount = 10;
 let currentAdminContext = { userId: '', email: '', fullName: '' };
@@ -779,6 +855,7 @@ function applyDrivesSort(drives) {
 
 
 function renderBloodDrivesSection() {
+  if (adminRenderBlocked('drives')) return;
   const tableBody = document.getElementById('drivesTableBody');
   const readinessList = document.getElementById('drivesReadinessList');
   if (!tableBody || !readinessList) return;
@@ -882,7 +959,11 @@ function renderBloodDrivesSection() {
   }).join('');
 }
 
-async function refreshBloodDrives() {
+function refreshBloodDrives() {
+  return loadAdminSection('drives', refreshBloodDrivesData);
+}
+
+async function refreshBloodDrivesData() {
   const tableBody = document.getElementById('drivesTableBody');
   if (typeof listBloodDrives !== 'function') {
     if (tableBody) tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ef4444;padding:32px;">Blood-drive service is unavailable.</td></tr>';
@@ -895,6 +976,7 @@ async function refreshBloodDrives() {
     return;
   }
 
+  adminLoadReady('drives');
   BLOOD_DRIVE_PLAN.splice(0, BLOOD_DRIVE_PLAN.length, ...(Array.isArray(data) ? data : []));
   renderBloodDrivesSection();
 }
@@ -1197,9 +1279,9 @@ function openAdminDriveDetails(driveId) {
             <i class="fa-solid fa-users"></i>
           </div>
           <div class="drive-stat-card-info">
-            <span class="drive-stat-card-label">Registered Donors</span>
+            <span class="drive-stat-card-label">Registrations</span>
             <strong class="drive-stat-card-val stat-val-registered">${formatNumber(registeredDonors)}</strong>
-            <span class="drive-stat-card-unit">${registeredDonors === 1 ? 'donor signed up' : 'donors signed up'}</span>
+            <span class="drive-stat-card-unit">${registeredDonors === 1 ? 'person signed up' : 'people signed up'}</span>
           </div>
         </div>
 
@@ -1229,18 +1311,20 @@ function openAdminDriveDetails(driveId) {
         <div class="drive-info-card">
           <div class="drive-info-icon"><i class="fa-solid fa-droplet"></i></div>
           <div class="drive-info-content">
-            <span class="drive-info-label">Focus Blood Type</span>
+            <span class="drive-info-label">Blood Type Priority</span>
             <span class="blood-focus-badge"><i class="fa-solid fa-heart-pulse"></i> ${escapeHtml(focusLabel)}</span>
-            <span class="drive-info-sub">${drive.focus_type === 'All' ? 'All eligible donors may participate' : `Prioritizing ${escapeHtml(drive.focus_type)} donors`}</span>
+            <span class="drive-info-sub">${drive.focus_type === 'All' ? 'Everyone interested in donating is welcome to register' : `${escapeHtml(drive.focus_type)} donations are especially needed; all blood types are welcome to register`}</span>
           </div>
         </div>
       </div>
+
+      <p class="drive-info-sub">You do not need prior donor approval to register. Registration expresses your interest in donating; the screening team will check donation eligibility at the venue.</p>
 
       <!-- Instructions Section -->
       <div class="drive-instructions-card">
         <div class="drive-instructions-header">
           <i class="fa-solid fa-clipboard-list"></i>
-          <span>Donor Instructions</span>
+          <span>Participant Instructions</span>
         </div>
         ${notesText ? `<p class="drive-instructions-body">${escapeHtml(notesText)}</p>` : `<p class="drive-instructions-empty">No special instructions provided for this drive campaign.</p>`}
       </div>
@@ -1623,7 +1707,11 @@ function getSimplifiedRequestStatusRows(statusCounts) {
   ];
 }
 
-async function refreshReportsSection() {
+function refreshReportsSection() {
+  return loadAdminSection('reports', refreshReportsSectionData);
+}
+
+async function refreshReportsSectionData() {
   if (reportsRefreshPromise) return reportsRefreshPromise;
 
   const exportStatus = document.getElementById('reportsExportStatus');
@@ -1646,6 +1734,8 @@ async function refreshReportsSection() {
     if (inventoryResult?.error) errors.push(inventoryResult.error?.message || 'inventory');
     else if (Array.isArray(inventoryResult?.data?.by_type)) inventoryByTypeCache = inventoryResult.data.by_type;
 
+    if (errors.length) throw new Error(errors.join('; '));
+    adminLoadReady('reports');
     renderReportsSection();
     if (reportsTrendChart) requestAnimationFrame(() => reportsTrendChart.resize());
 
@@ -1938,6 +2028,7 @@ document.getElementById('deleteDriveConfirmModal')?.addEventListener('click', (e
 });
 
 function renderReportsSection() {
+  if (adminRenderBlocked('reports')) return;
   const requestBody = document.getElementById('reportsRequestBreakdownBody');
   const inventoryBody = document.getElementById('reportsInventoryBreakdownBody');
   if (!requestBody || !inventoryBody) return;
@@ -2070,6 +2161,12 @@ function getCommunityLifecycleInfo(row) {
   return { status: 'active', label: 'Community Active', className: 'pending' };
 }
 
+function getRequestDisplayStatus(row) {
+  const lifecycle = getCommunityLifecycleInfo(row).status;
+  if (lifecycle === 'expired' || lifecycle === 'fulfilled') return lifecycle;
+  return normalizeRequestStatus(row?.status);
+}
+
 function isUrgentRequest(row) {
   if (String(row?.request_type || '').toLowerCase() === 'replacement') return false;
   const urgency = String(row?.urgency_level || '').toLowerCase();
@@ -2085,11 +2182,11 @@ function formatRequestRequirement(row) {
 }
 
 function isPendingRequest(row) {
-  const status = normalizeRequestStatus(row?.status);
-  return status === 'pending';
+  return getRequestDisplayStatus(row) === 'pending';
 }
 
 function getRequestStatusInfo(status) {
+  if (status === 'expired') return { className: 'rejected', label: 'Expired' };
   const normalized = normalizeRequestStatus(status);
   const map = {
     pending: {
@@ -2147,17 +2244,6 @@ function getValidRequestTransitions(currentStatus) {
   return transitions[normalized] || [];
 }
 
-const RED_CELL_COMPATIBILITY = {
-  'O-': ['O-'],
-  'O+': ['O+', 'O-'],
-  'A-': ['A-', 'O-'],
-  'A+': ['A+', 'A-', 'O+', 'O-'],
-  'B-': ['B-', 'O-'],
-  'B+': ['B+', 'B-', 'O+', 'O-'],
-  'AB-': ['AB-', 'A-', 'B-', 'O-'],
-  'AB+': ['AB+', 'AB-', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-']
-};
-
 function getTransitionReasonOptions(targetStatus, request = null) {
   if (targetStatus === 'approved') {
     const hasUploadedDocument = Boolean(
@@ -2173,8 +2259,7 @@ function getTransitionReasonOptions(targetStatus, request = null) {
   }
   const map = {
     needs_clarification: ['Missing patient details', 'Quantity clarification needed', 'Supporting document required', 'Contact information incomplete'],
-    rejected: ['No stock available', 'Invalid request details', 'Duplicate request', 'Policy non-compliance'],
-    fulfilled: ['Donation confirmed by authorized facility', 'Replacement requirement completed', 'Community coordination case closed'],
+    rejected: ['Invalid request details', 'Duplicate request', 'Policy non-compliance'],
     pending: ['Clarification received', 'Re-opened for review']
   };
   return (map[targetStatus] || ['Status updated by admin']).map((label) => ({ value: label, label }));
@@ -2183,7 +2268,7 @@ function getTransitionReasonOptions(targetStatus, request = null) {
 function updateRequestsStatsCards(sourceRows = []) {
   const rows = Array.isArray(sourceRows) ? sourceRows : [];
   const total = rows.length;
-  const pending = rows.filter((row) => normalizeRequestStatus(row.status) === 'pending').length;
+  const pending = rows.filter(isPendingRequest).length;
   const approved = rows.filter((row) => normalizeRequestStatus(row.status) === 'approved').length;
   const rejected = rows.filter((row) => normalizeRequestStatus(row.status) === 'rejected').length;
   const clarification = rows.filter((row) => normalizeRequestStatus(row.status) === 'needs_clarification').length;
@@ -2307,7 +2392,7 @@ async function refreshOverviewStats() {
     totalStock > 0 ? 'Live total across blood inventory' : 'No inventory data yet';
 
   const pendingRequestsCount = requestsSectionCache.length > 0
-    ? requestsSectionCache.filter((r) => normalizeRequestStatus(r.status) === 'pending').length
+    ? requestsSectionCache.filter(isPendingRequest).length
     : Number(data.pending_requests_count ?? 0);
   const hasPending = pendingRequestsCount > 0;
 
@@ -2318,7 +2403,11 @@ async function refreshOverviewStats() {
   renderReportsSection();
 }
 
-async function refreshOverviewInventoryPanel() {
+function refreshOverviewInventoryPanel() {
+  return loadAdminSection('overviewInventory', refreshOverviewInventoryPanelData);
+}
+
+async function refreshOverviewInventoryPanelData() {
   const container = document.getElementById('overviewInventoryChart');
   if (!container) return;
 
@@ -2328,11 +2417,13 @@ async function refreshOverviewInventoryPanel() {
     return;
   }
 
+  adminLoadReady('overviewInventory');
   overviewInventoryCache = Array.isArray(data) ? data : [];
   renderOverviewInventoryPanel();
 }
 
 function renderOverviewInventoryPanel() {
+  if (adminRenderBlocked('overviewInventory')) return;
   const container = document.getElementById('overviewInventoryChart');
   if (!container) return;
 
@@ -2388,7 +2479,7 @@ async function refreshOverviewRequestsPanel() {
   if (requestsSectionCache.length === 0 && overviewRequestsCache.length > 0) {
     requestsSectionCache = overviewRequestsCache;
   }
-  const pendingRequestsCount = requestsSectionCache.filter((r) => normalizeRequestStatus(r.status) === 'pending').length;
+  const pendingRequestsCount = requestsSectionCache.filter(isPendingRequest).length;
   setSidebarBadge('requests', pendingRequestsCount, pendingRequestsCount > 0);
 
   refreshPendingUrgentRequestsKpi();
@@ -2467,7 +2558,11 @@ function renderOverviewActivityFeed() {
   }).join('');
 }
 
-async function refreshOverviewExpirationsTable() {
+function refreshOverviewExpirationsTable() {
+  return loadAdminSection('expirations', refreshOverviewExpirationsTableData);
+}
+
+async function refreshOverviewExpirationsTableData() {
   const overviewTbody = document.getElementById('overviewExpirationsBody');
   const inventoryTbody = document.getElementById('inventoryExpirationsBody');
   if (!overviewTbody && !inventoryTbody) return;
@@ -2537,10 +2632,12 @@ async function refreshOverviewExpirationsTable() {
     .sort((a, b) => a.expiryDate.getTime() - b.expiryDate.getTime())
     .slice(0, 5);
 
+  adminLoadReady('expirations');
   renderOverviewExpirationsTable();
 }
 
 function renderOverviewExpirationsTable() {
+  if (adminRenderBlocked('expirations')) return;
   const overviewTbody = document.getElementById('overviewExpirationsBody');
   const inventoryTbody = document.getElementById('inventoryExpirationsBody');
   if (!overviewTbody && !inventoryTbody) return;
@@ -2602,7 +2699,11 @@ function closeInventoryModal() {
   }
 }
 
-async function refreshInventorySection() {
+function refreshInventorySection() {
+  return loadAdminSection('inventory', refreshInventorySectionData);
+}
+
+async function refreshInventorySectionData() {
   const inventoryList = document.getElementById('inventoryList');
   if (!inventoryList) return;
 
@@ -2612,6 +2713,7 @@ async function refreshInventorySection() {
     return;
   }
 
+  adminLoadReady('inventory');
   inventoryByTypeCache = Array.isArray(data.by_type) ? data.by_type : [];
 
   let adequate = 0;
@@ -2646,12 +2748,12 @@ async function refreshInventorySection() {
     critical > 0 ? 'Immediate restock required' : 'No critical-stock alerts';
 
   renderInventorySection();
-  await refreshBloodDrives();
   updateOverviewMiniStats();
   renderReportsSection();
 }
 
 function renderInventorySection() {
+  if (adminRenderBlocked('inventory')) return;
   const inventoryList = document.getElementById('inventoryList');
   if (!inventoryList) return;
 
@@ -2701,7 +2803,11 @@ function renderInventorySection() {
   }).join('');
 }
 
-async function refreshRequestsSection() {
+function refreshRequestsSection() {
+  return loadAdminSection('requests', refreshRequestsSectionData);
+}
+
+async function refreshRequestsSectionData() {
   const list = document.getElementById('requestsSectionList');
   if (!list) return;
 
@@ -2711,9 +2817,10 @@ async function refreshRequestsSection() {
     return;
   }
 
+  adminLoadReady('requests');
   requestsSectionCache = Array.isArray(data) ? data : [];
   refreshPendingUrgentRequestsKpi();
-  const pendingRequestsCount = requestsSectionCache.filter((r) => normalizeRequestStatus(r.status) === 'pending').length;
+  const pendingRequestsCount = requestsSectionCache.filter(isPendingRequest).length;
   setSidebarBadge('requests', pendingRequestsCount, pendingRequestsCount > 0);
   updateRequestsStatsCards(requestsSectionCache);
   renderRequestsSection();
@@ -3004,21 +3111,16 @@ function setRequestStatusMsg(text, type = '') {
 function syncVerificationDetailsRequirement() {
   const note = document.getElementById('requestStatusNote');
   const noteLabel = document.getElementById('requestStatusNoteLabel');
-  const reason = document.getElementById('requestStatusReason')?.value || '';
-  const row = requestsSectionCache.find((item) => Number(item.request_id) === Number(requestTransitionState.requestId));
   const isVerification = requestTransitionState.targetStatus === 'approved';
-  const facilityDetailsMissing = !row?.hospital_reference && !row?.verification_support?.facility_contact;
-  const required = isVerification && (reason === 'other' || (reason === 'facility_confirmation' && facilityDetailsMissing));
   if (note) {
-    note.required = required;
+    note.required = false;
     note.placeholder = isVerification
-      ? (required ? 'Enter the verification details used by the coordinator.' : 'Add a contact name, reference, or review note if useful.')
+      ? 'Add a contact name, reference, or review note if useful.'
       : 'Optional note for this status change...';
   }
-  if (noteLabel) noteLabel.textContent = isVerification
-    ? `Verification details${required ? ' *' : ' (optional)'}`
-    : 'Admin note (optional)';
+  if (noteLabel) noteLabel.textContent = isVerification ? 'Review note (optional)' : 'Admin note (optional)';
 }
+
 document.getElementById('requestStatusReason')?.addEventListener('change', syncVerificationDetailsRequirement);
 
 function openRequestStatusModal(requestId, targetStatus) {
@@ -3066,18 +3168,10 @@ function openRequestStatusModal(requestId, targetStatus) {
         : `${oldStatus.replace('_', ' ')} → ${targetStatus.replace('_', ' ')}`;
   document.getElementById('requestStatusReasonLabel').textContent = isVerification
     ? 'Verification basis'
-    : isClosing
-      ? 'Closure basis'
-      : isRejection
-        ? 'Rejection reason'
-        : 'Reason';
+    : isRejection ? 'Rejection reason' : 'Reason';
   document.getElementById('requestStatusReasonHelp').textContent = isVerification
     ? 'Choose the evidence you personally reviewed before approving this private request.'
-    : isClosing
-      ? 'Select the fulfillment or verification source used to close this request.'
-      : isRejection
-        ? 'Select the verified reason for declining this request.'
-        : '';
+    : isRejection ? 'Select the verified reason for declining this request.' : '';
   const submitBtn = document.getElementById('requestStatusSubmit');
   if (submitBtn) {
     submitBtn.className = isRejection ? 'btn-submit btn-danger' : 'btn-submit';
@@ -3090,8 +3184,11 @@ function openRequestStatusModal(requestId, targetStatus) {
           : '<i class="fa-solid fa-check"></i> Confirm Change';
   }
 
+  document.getElementById('requestStatusReasonGroup').hidden = isVerification || isClosing;
   const reasonSelect = document.getElementById('requestStatusReason');
-  reasonSelect.innerHTML = `<option value="">${isVerification ? 'Select verification basis' : isRejection ? 'Select rejection reason' : 'Select a reason'}</option>` +
+  reasonSelect.required = !isVerification && !isClosing;
+  reasonSelect.disabled = isVerification || isClosing;
+  reasonSelect.innerHTML = isClosing ? '' : `<option value="">${isVerification ? 'Select verification basis' : isRejection ? 'Select rejection reason' : 'Select a reason'}</option>` +
     getTransitionReasonOptions(targetStatus, request)
       .map((option) => `<option value="${escapeHtml(option.value)}"${option.disabled ? ' disabled' : ''}>${escapeHtml(option.label)}${option.disabled ? ' (no upload)' : ''}</option>`)
       .join('');
@@ -3118,9 +3215,15 @@ async function submitRequestStatusTransition(event) {
   const { requestId, targetStatus, oldStatus } = requestTransitionState;
   if (!requestId || !targetStatus) return;
 
-  const reason = String(document.getElementById('requestStatusReason').value || '').trim();
-  const reasonLabel = String(document.getElementById('requestStatusReason').selectedOptions?.[0]?.textContent || reason).replace(/ \(no upload\)$/, '').trim();
-  const note = String(document.getElementById('requestStatusNote').value || '').trim();
+  const isVerification = targetStatus === 'approved';
+  // Use the existing documented-review method; do not infer document or facility evidence.
+  const isClosing = targetStatus === 'fulfilled';
+  const reason = isVerification ? 'other' : isClosing ? 'Blood bank admin confirmed fulfillment' : String(document.getElementById('requestStatusReason').value || '').trim();
+  const reasonLabel = isVerification ? 'Coordinator review confirmed' : isClosing ? reason : String(document.getElementById('requestStatusReason').selectedOptions?.[0]?.textContent || reason).replace(/ \(no upload\)$/, '').trim();
+  const enteredNote = String(document.getElementById('requestStatusNote').value || '').trim();
+  const note = isVerification
+    ? ['Coordinator approved this request using Verify and Approve Request.', enteredNote].filter(Boolean).join('\n\n')
+    : enteredNote;
   const row = requestsSectionCache.find((item) => Number(item.request_id) === Number(requestId));
 
   const validationMessage = await validateRequestTransition(row, targetStatus, reason, note);
@@ -3212,16 +3315,25 @@ async function submitRequestStatusTransition(event) {
   setTimeout(closeRequestStatusModal, 700);
 }
 
-let adminRequestsTab = 'all';
+let adminRequestsTab = 'active';
+
+function isArchivedBloodRequest(row) {
+  return Boolean(row.archived_at);
+}
 
 function switchAdminRequestsTab(tab) {
-  adminRequestsTab = tab || 'all';
-  const btnAll = document.getElementById('btnAdminTabAllRequests');
-  const btnCommunity = document.getElementById('btnAdminTabCommunityRequests');
-
-  if (btnAll) btnAll.classList.toggle('active', adminRequestsTab === 'all');
-  if (btnCommunity) btnCommunity.classList.toggle('active', adminRequestsTab === 'community');
-
+  adminRequestsTab = tab === 'archives' ? 'archives' : 'active';
+  requestSelectionMode = false;
+  selectedRequestIds.clear();
+  requestStatusFilterValue = 'all';
+  const statusFilter = document.getElementById('requestStatusFilter');
+  if (statusFilter) statusFilter.value = 'all';
+  requestsVisibleCount = requestsPageSize;
+  document.querySelectorAll('[data-request-view]').forEach(button => {
+    const selected = button.dataset.requestView === adminRequestsTab;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
   renderRequestsSection();
 }
 window.switchAdminRequestsTab = switchAdminRequestsTab;
@@ -3244,7 +3356,7 @@ async function loadReplacementConfirmationHistory(requestId) {
 
 function openReplacementDonationModal(requestId) {
   const row = requestsSectionCache.find(item => Number(item.request_id || item.id) === Number(requestId));
-  if (!row || row.request_type !== 'replacement' || row.verification_status !== 'verified') return;
+  if (!row || row.request_type !== 'replacement' || row.verification_status !== 'verified' || getRequestDisplayStatus(row) === 'expired') return;
   const campaign = Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : row.replacement_campaign;
   const confirmed = Number(campaign?.confirmed_units || 0);
   const target = Number(campaign?.target_units || row.quantity || 1);
@@ -3324,13 +3436,6 @@ async function submitReplacementDonation(event) {
   }
 }
 document.getElementById('replacementDonationForm')?.addEventListener('submit', submitReplacementDonation);
-
-const VERIFICATION_BASIS_LABELS = {
-  uploaded_document: 'Uploaded supporting document reviewed',
-  physical_document: 'Physical document reviewed in person',
-  facility_confirmation: 'Confirmed with facility representative',
-  other: 'Other documented verification'
-};
 
 function formatDocFileSize(bytes) {
   if (!bytes || Number.isNaN(bytes)) return '';
@@ -3417,31 +3522,46 @@ async function prepareAdminRequestDocument(storagePath, fileName) {
   link.innerHTML = `<i class="fa-solid fa-file-shield" aria-hidden="true"></i> View ${escapeHtml(fileName || 'supporting document')}`;
 }
 
+function getVerificationNoteDisplayText(note) {
+  return String(note || '')
+    .replace(/^Coordinator approved this request using Verify and Approve Request\.\s*/i, '')
+    .trim();
+}
+
+function getVerifierDisplayUsername(support) {
+  const email = String(support?.verified_by_email || '').trim();
+  const username = email.split('@')[0];
+  return username || (support?.verified_at ? 'Blood Donation Coordinator' : 'Not yet verified');
+}
+
 function renderAdminPrivateSupportSection(row) {
+  const loading = row.private_support_loading;
+  const supportError = row.verification_support_error;
+  const docsError = row.supporting_documents_error || supportError;
   const verificationSupport = row?.verification_support || null;
-  const verificationBasis = VERIFICATION_BASIS_LABELS[verificationSupport?.verification_method]
-    || (row?.verification_status === 'verified' ? 'Coordinator verification recorded before evidence tracking' : 'Pending coordinator review');
+  const verificationNote = getVerificationNoteDisplayText(verificationSupport?.verification_note);
   const allDocs = getRequestAllDocuments(row);
   return `<section class="request-private-support" id="adminPrivateSupportSection">
       <h4><i class="fa-solid fa-lock" aria-hidden="true"></i> Private verification support</h4>
       <p>Visible only to the requester and authorized Blood Donation Coordinators.</p>
       <div class="request-private-support-grid">
-        <div class="request-private-support-item"><span>Facility contact</span><strong>${escapeHtml(verificationSupport?.facility_contact || 'Not provided')}</strong></div>
+        <div class="request-private-support-item"><span>Facility contact</span><strong>${escapeHtml(loading ? 'Loading…' : supportError ? 'Unable to load facility contact' : verificationSupport?.facility_contact || 'Not provided')}</strong></div>
         <div class="request-private-support-item"><span>Hospital / replacement reference</span><strong>${escapeHtml(row?.hospital_reference || 'Not provided')}</strong></div>
-        <div class="request-private-support-item"><span>Verification basis</span><strong>${escapeHtml(verificationBasis)}</strong></div>
-        <div class="request-private-support-item"><span>Verified by</span><strong>${escapeHtml(verificationSupport?.verified_by_email || (verificationSupport?.verified_at ? 'Blood Donation Coordinator' : 'Not yet verified'))}</strong></div>
+        <div class="request-private-support-item"><span>Verified by</span><strong>${escapeHtml(getVerifierDisplayUsername(verificationSupport))}</strong></div>
         <div class="request-private-support-item"><span>Verified on</span><strong>${verificationSupport?.verified_at ? escapeHtml(formatDateShort(verificationSupport.verified_at)) : 'Not yet verified'}</strong></div>
       </div>
-      ${verificationSupport?.verification_note ? `<div class="request-private-support-item" style="margin-top:10px;"><span>Coordinator verification note</span><strong>${escapeHtml(verificationSupport.verification_note)}</strong></div>` : ''}
+      ${verificationNote ? `<div class="request-private-support-item" style="margin-top:10px;"><span>Verification Note</span><strong>${escapeHtml(verificationNote)}</strong></div>` : ''}
       <div class="request-documents-section" style="margin-top:14px;">
         <h5 style="margin:0 0 8px;font-size:0.875rem;font-weight:700;color:#374151;">
-          <i class="fa-solid fa-paperclip" aria-hidden="true"></i> Attached Supporting Documents (${allDocs.length})
+          <i class="fa-solid fa-paperclip" aria-hidden="true"></i> Attached Supporting Documents ${loading || docsError ? '' : `(${allDocs.length})`}
         </h5>
-        ${allDocs.length > 0
+        ${loading ? '<p role="status">Loading private support and attachments…</p>' : ''}
+        ${!loading && docsError ? '<p role="alert">Unable to load all private support details. Reopen this request to retry. If this continues, check the private-support database migrations and access policies.</p>' : ''}
+        ${!loading && allDocs.length > 0
           ? `<div id="adminSupportingDocsList" class="request-docs-grid">
               ${allDocs.map((d) => `<div class="request-doc-item request-doc-item--loading"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Preparing ${escapeHtml(d.file_name || 'document')}...</span></div>`).join('')}
             </div>`
-          : '<p style="margin:0;color:#6b7280;font-size:0.875rem;"><i class="fa-solid fa-file-circle-xmark" aria-hidden="true"></i> No supporting documents attached.</p>'}
+          : !loading && !docsError ? '<p style="margin:0;color:#6b7280;font-size:0.875rem;"><i class="fa-solid fa-file-circle-xmark" aria-hidden="true"></i> No supporting documents attached.</p>' : ''}
       </div>
     </section>`;
 }
@@ -3454,6 +3574,8 @@ function openAdminRequestDetails(requestId) {
   const body = document.getElementById('adminRequestDetailBody');
   const actions = document.getElementById('adminRequestDetailActions');
   if (!modal || !body) return;
+  const detailsVersion = ++adminRequestDetailsVersion;
+  row.private_support_loading = true;
 
   const patient = Array.isArray(row.patient) ? row.patient[0] : row.patient;
   const firstName = patient?.first_name || 'Blood Bank';
@@ -3472,8 +3594,8 @@ function openAdminRequestDetails(requestId) {
     .reduce((total, pledge) => total + Number(pledge.units_pledged || 1), 0);
   const isUrgent = isUrgentRequest(row);
   const urgencyStr = isUrgent ? 'Urgent' : 'Normal';
-  const status = normalizeRequestStatus(row.status);
-  const statusBadge = getCommunityLifecycleInfo(row).status === 'expired' ? { className: 'rejected', label: 'Expired' } : getRequestStatusInfo(status);
+  const status = getRequestDisplayStatus(row);
+  const statusBadge = getRequestStatusInfo(status);
   const securedBags = Number(row.bags_secured ?? (status === 'fulfilled' ? units : (status === 'processing' ? Math.min(units, 1) : 0)));
   const statusSummaryStr = `${securedBags}/${units} Unit${units !== 1 ? 's' : ''} Secured`;
   const rawNoteText = String(row.note || row.notes || row.description || '');
@@ -3543,15 +3665,14 @@ function openAdminRequestDetails(requestId) {
   if (actions) {
     actions.innerHTML = `
           ${status === 'pending' ? `
-            <button type="button" class="btn-verify-request" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'approved')"><i class="fa-solid fa-pen-to-square"></i> Verify Request</button>
             <button type="button" class="btn-reject-request" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'rejected')"><i class="fa-solid fa-ban"></i> Reject Request</button>
+            <button type="button" class="btn-verify-request" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'approved')"><i class="fa-solid fa-pen-to-square"></i> Verify Request</button>
           ` : ''}
-          ${row.request_type === 'replacement' && row.verification_status === 'verified' && status !== 'fulfilled' ? `
+          ${row.request_type === 'replacement' && row.verification_status === 'verified' && status !== 'fulfilled' && status !== 'expired' ? `
             <button type="button" class="btn-primary request-detail-action request-detail-action--record" onclick="closeAdminRequestDetailModal(); openReplacementDonationModal(${Number(row.request_id || row.id)})"><i class="fa-solid fa-clipboard-check"></i> Record Replacement Donation</button>
           ` : ''}
           ${row.request_type !== 'replacement' && status === 'approved' ? `
             <button type="button" class="btn-close-coordination request-detail-action request-detail-action--complete" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'fulfilled')"><i class="fa-solid fa-circle-check"></i> Mark Fulfilled</button>
-            <button type="button" class="btn-reject-request" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'rejected')"><i class="fa-solid fa-ban"></i> Reject / Cancel</button>
           ` : ''}
         `;
   }
@@ -3562,83 +3683,58 @@ function openAdminRequestDetails(requestId) {
     prepareAdminRequestDocuments(initialDocs);
   }
 
-  // Asynchronously fetch fresh verification support and documents to guarantee live state
-  const reqTargetId = Number(row.request_id || row.id);
-  if (Number.isInteger(reqTargetId) && reqTargetId > 0) {
-    const fetchPromises = [];
-    if (typeof listRequestVerificationSupport === 'function') {
-      fetchPromises.push(listRequestVerificationSupport([reqTargetId]));
-    } else {
-      fetchPromises.push(Promise.resolve({ data: [] }));
-    }
-    if (typeof listRequestSupportingDocuments === 'function') {
-      fetchPromises.push(listRequestSupportingDocuments([reqTargetId]));
-    } else {
-      fetchPromises.push(Promise.resolve({ data: [] }));
-    }
-
-    Promise.all(fetchPromises).then(([supportRes, docsRes]) => {
-      const freshSupport = supportRes?.data?.[0] || null;
-      const freshDocs = docsRes?.data || [];
-
-      // Always update row with fresh data from live fetch (overwrite cache state)
-      row.verification_support = freshSupport !== null ? freshSupport : (row.verification_support || null);
-      row.supporting_documents = freshDocs.length > 0 ? freshDocs : (row.supporting_documents || []);
-
-      const updateCache = (cache) => {
-        const item = cache.find((it) => Number(it.request_id || it.id) === reqTargetId);
-        if (item) {
-          item.verification_support = row.verification_support;
-          item.supporting_documents = row.supporting_documents;
-        }
-      };
-      updateCache(requestsSectionCache);
-      updateCache(overviewRequestsCache);
-
-      // Always re-render the private support section with latest data
-      const container = document.getElementById('adminPrivateSupportContainer');
-      if (container && modal.classList.contains('active')) {
-        container.innerHTML = renderAdminPrivateSupportSection(row);
-        const currentDocs = getRequestAllDocuments(row);
-        if (currentDocs.length) {
-          prepareAdminRequestDocuments(currentDocs);
-        }
-      }
-    }).catch(() => {});
-  }
+  refreshAdminPrivateSupport(row, modal, detailsVersion);
 
   if (row.request_type === 'replacement') loadReplacementConfirmationHistory(Number(row.request_id || row.id));
 }
 window.openAdminRequestDetails = openAdminRequestDetails;
 
+async function refreshAdminPrivateSupport(row, modal, version) {
+  const requestId = Number(row.request_id || row.id);
+  const read = (loader) => Promise.resolve().then(() => loader([requestId]))
+    .catch((error) => ({ data: null, error }));
+  const [support, documents] = await Promise.all([
+    read(listRequestVerificationSupport), read(listRequestSupportingDocuments)
+  ]);
+  row.private_support_loading = false;
+  row.verification_support_error = support.error || null;
+  row.supporting_documents_error = documents.error || null;
+  if (!support.error) row.verification_support = support.data?.[0] || null;
+  if (!documents.error) row.supporting_documents = documents.data || [];
+  if (support.error || documents.error) console.error('Private request support failed to load:', support.error, documents.error);
+  // A slow response for another request must never overwrite this modal.
+  if (version !== adminRequestDetailsVersion || !modal.classList.contains('active')) return;
+  const container = document.getElementById('adminPrivateSupportContainer');
+  if (container) {
+    container.innerHTML = renderAdminPrivateSupportSection(row);
+    const docs = getRequestAllDocuments(row);
+    if (docs.length) prepareAdminRequestDocuments(docs);
+  }
+}
+
 function closeAdminRequestDetailModal() {
+  adminRequestDetailsVersion++;
   const modal = document.getElementById('adminRequestDetailModal');
   if (modal) modal.classList.remove('active');
 }
 window.closeAdminRequestDetailModal = closeAdminRequestDetailModal;
 
 function renderRequestsSection() {
+  if (adminRenderBlocked('requests')) return;
   const list = document.getElementById('requestsSectionList');
   if (!list) return;
 
   const query = getSearchQuery();
-  const rows = requestsSectionCache.filter((row) => {
-    const status = normalizeRequestStatus(row.status);
+  const archiveView = adminRequestsTab === 'archives';
+  const viewRows = requestsSectionCache.filter(row => isArchivedBloodRequest(row) === archiveView);
+  const rows = viewRows.filter((row) => {
+    const status = getRequestDisplayStatus(row);
     if (requestStatusFilterValue !== 'all' && status !== requestStatusFilterValue) {
       return false;
     }
 
     const bloodType = normalizeBloodType(row.blood_type_needed || row.blood_type || '');
     if (requestBloodTypeFilterValue !== 'all' && bloodType !== requestBloodTypeFilterValue) {
-      return false;
-    }
-
-    const isReplacement = row.request_type === 'replacement';
-    const isEmergencyDonor = row.request_type === 'emergency_donor';
-    if (requestTypeFilterValue === 'replacement' && !isReplacement) {
-      return false;
-    }
-    if (requestTypeFilterValue === 'emergency_donor' && !isEmergencyDonor) {
       return false;
     }
 
@@ -3657,19 +3753,20 @@ function renderRequestsSection() {
       patient?.hospital_name
     ], query);
   });
+  setSelectableRequestIds(rows);
 
   const summary = document.getElementById('requestsFilterSummary');
   if (summary) {
-    summary.textContent = `Showing ${Math.min(requestsVisibleCount, rows.length)} of ${rows.length} requests${requestsSectionCache.length !== rows.length ? ` (${requestsSectionCache.length} total)` : ''}`;
+    summary.textContent = `Showing ${Math.min(requestsVisibleCount, rows.length)} of ${rows.length} ${archiveView ? 'archived' : 'active'} requests${viewRows.length !== rows.length ? ` (${viewRows.length} in this view)` : ''}`;
   }
 
   const clearButton = document.getElementById('clearRequestFilters');
   if (clearButton) {
-    clearButton.disabled = requestStatusFilterValue === 'all' && requestBloodTypeFilterValue === 'all' && requestTypeFilterValue === 'all' && !query;
+    clearButton.disabled = requestStatusFilterValue === 'all' && requestBloodTypeFilterValue === 'all' && !query;
   }
 
   if (!rows.length) {
-    const message = requestsSectionCache.length ? 'No blood requests match these filters.' : 'No blood requests available.';
+    const message = viewRows.length ? 'No blood requests match these filters.' : archiveView ? 'No archived requests yet. Select requests in Active to archive them.' : 'No active blood requests.';
     list.innerHTML = `<div style="text-align:center;color:var(--slate-400);padding:32px 12px;">${message}</div>`;
     updateRequestsPagination(0, 0);
     return;
@@ -3687,9 +3784,9 @@ function renderRequestsSection() {
     const hospital = row.hospital_name || patient?.hospital_name || row.hospital || 'Hospital';
     const bloodType = normalizeBloodType(row.blood_type_needed || row.blood_type || 'O+');
     const units = Number(row.quantity || row.units_needed || 1);
-    const status = normalizeRequestStatus(row.status);
+    const status = getRequestDisplayStatus(row);
     const statusBadge = getRequestStatusInfo(status);
-    const isUrgent = isUrgentRequest(row);
+    const isUrgent = isUrgentRequest(row) && status !== 'expired';
     const securedBags = Number(row.bags_secured ?? (status === 'fulfilled' ? units : (status === 'processing' ? Math.min(units, 1) : 0)));
     const campaign = Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : row.replacement_campaign;
     const isReplacement = row.request_type === 'replacement';
@@ -3698,10 +3795,11 @@ function renderRequestsSection() {
     const statusSummaryStr = isReplacement
       ? `${Number(campaign?.pledged_units || 0)}/${Number(campaign?.target_units || units)} pledged · ${Number(campaign?.confirmed_units || 0)}/${Number(campaign?.target_units || units)} confirmed`
       : isEmergencyDonor
-        ? 'Private admin processing'
+        ? (status === 'expired' ? 'Request expired' : 'Private admin processing')
         : `${securedBags}/${units} donor${units !== 1 ? 's' : ''} requested`;
 
-    return `<div class="request-card request-row-clickable" tabindex="0" role="button" onclick="openAdminRequestDetails(${Number(reqId)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openAdminRequestDetails(${Number(reqId)});}" title="Click to view request details">
+    return `<div class="request-card request-row-clickable ${selectedRequestIds.has(Number(reqId)) ? 'request-card-selected' : ''}" role="${requestSelectionMode ? 'group' : 'button'}" ${requestSelectionMode ? '' : 'tabindex="0"'} aria-label="Request #${Number(reqId)}" onclick="requestSelectionMode ? toggleRequestSelected(event, ${Number(reqId)}) : openAdminRequestDetails(${Number(reqId)})" onkeydown="if(!requestSelectionMode && event.target === this && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openAdminRequestDetails(${Number(reqId)}); }" title="${requestSelectionMode ? 'Select request' : 'Click to view request details'}">
+          ${requestSelectionMode ? `<input type="checkbox" class="request-select-checkbox" value="${Number(reqId)}" aria-label="Select request #${Number(reqId)}" ${selectedRequestIds.has(Number(reqId)) ? 'checked' : ''} onclick="toggleRequestSelected(event, ${Number(reqId)})">` : ''}
           <div class="request-type ${isReplacement ? 'type-replacement' : ''}">
             ${isReplacement ? '<i class="fa-solid fa-rotate" aria-hidden="true"></i>' : escapeHtml(bloodType)}
           </div>
@@ -3722,11 +3820,6 @@ function renderRequestsSection() {
               <span class="request-dot">•</span>
               <span>Requester: ${escapeHtml(patientName)}</span>
             </div>
-          </div>
-          <div class="request-meta">
-            <button type="button" class="btn-row-action" onclick="event.stopPropagation();openAdminRequestDetails(${Number(reqId)})" title="View details">
-              <i class="fa-solid fa-circle-info"></i> Details
-            </button>
           </div>
         </div>`;
   }).join('');
@@ -3779,148 +3872,6 @@ function showLessRequests() {
 }
 window.showLessRequests = showLessRequests;
 
-function isDonorEligibleForAppeal(donor) {
-  const availability = String(donor?.availability_status || '').toLowerCase();
-  const lifecycle = String(donor?.donor_status || 'registered').toLowerCase();
-  const waitingPeriodPassed = isEligibleToCheckIn(donor).eligible;
-  return availability === 'available'
-    && ['approved', 'donated'].includes(lifecycle)
-    && waitingPeriodPassed;
-}
-
-function isDonorTheRequester(donor, patient) {
-  if (!donor || !patient) return false;
-
-  const donorUserId = String(donor.auth_user_id || '').trim();
-  const patientUserId = String(patient.auth_user_id || '').trim();
-  if (donorUserId && patientUserId && donorUserId === patientUserId) return true;
-
-  const donorEmail = String(donor.email || '').trim().toLowerCase();
-  const patientEmail = String(patient.email || '').trim().toLowerCase();
-  if (donorEmail && patientEmail && donorEmail === patientEmail) return true;
-
-  const donorPhone = String(donor.phone || donor.contact_number || '').replace(/\D/g, '');
-  const patientPhone = String(patient.contact_number || patient.phone || '').replace(/\D/g, '');
-  return donorPhone.length >= 7 && patientPhone.length >= 7 && donorPhone === patientPhone;
-}
-
-let activeMobilizeRequestId = null;
-
-function openMobilizeDonorsModal(requestId) {
-  const request = requestsSectionCache.find((item) => Number(item.request_id) === Number(requestId));
-  if (!request) return;
-
-  if (getCommunityLifecycleInfo(request).status !== 'active' || request.status !== 'approved' || request.verification_status !== 'verified') return;
-  activeMobilizeRequestId = Number(requestId);
-  const patient = Array.isArray(request.patient) ? request.patient[0] : request.patient;
-  const firstName = patient?.first_name || 'Blood Bank';
-  const lastName = patient?.last_name || 'Patient';
-  const patientName = `${firstName} ${lastName}`.trim();
-  const hospital = patient?.hospital_name || 'Partner Health Facility';
-  const patientArea = patient?.address || patient?.map_area || 'Bohol';
-  const neededType = normalizeBloodType(request.blood_type_needed || 'O+');
-  const quantity = Number(request.quantity || 1);
-
-  document.getElementById('mobilizeRecipientName').textContent = patientName;
-  document.getElementById('mobilizeLocationText').innerHTML = `<i class="fa-solid fa-location-dot"></i> ${escapeHtml(patientArea)} &bull; ${escapeHtml(hospital)}`;
-  document.getElementById('mobilizeBloodTypeBadge').textContent = neededType;
-  document.getElementById('mobilizeQuantityText').textContent = `${quantity} Unit(s) Needed`;
-
-  // Show only donors whose red-cell type is compatible with the requested type.
-  // The facility still makes the final medical and crossmatch decision.
-  const donors = Array.isArray(donorCache) ? donorCache : [];
-  const compatibleTypes = RED_CELL_COMPATIBILITY[neededType] || [neededType];
-  const matchingDonors = donors.filter((d) => (
-    isDonorEligibleForAppeal(d)
-    && !isDonorTheRequester(d, patient)
-    && (request.request_type === 'replacement' || compatibleTypes.includes(normalizeBloodType(d.blood_type)))
-  ));
-
-  document.getElementById('mobilizeMatchCount').textContent = matchingDonors.length;
-  const tbody = document.getElementById('mobilizeDonorsTableBody');
-
-  if (!matchingDonors.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--slate-400);padding:24px;">No currently eligible and available donors were found.</td></tr>`;
-  } else {
-    tbody.innerHTML = matchingDonors.map((d) => {
-      const name = formatCompleteName(d, 'Registered Donor');
-      const dType = normalizeBloodType(d.blood_type);
-      const area = d.map_area || d.address || 'Bohol';
-      const phone = d.phone || '-';
-      const { eligible, daysRemaining } = isEligibleToCheckIn(d);
-      const eligHtml = eligible
-        ? '<span class="badge donated" style="font-size:0.68rem;"><i class="fa-solid fa-check"></i> Eligible Now</span>'
-        : `<span class="waiting-pill" style="font-size:0.68rem;">${daysRemaining}d wait</span>`;
-
-      return `<tr>
-            <td><strong>${escapeHtml(name)}</strong></td>
-            <td><span class="type-pill">${escapeHtml(dType)}</span></td>
-            <td>${escapeHtml(area)}</td>
-            <td>${escapeHtml(phone)}</td>
-            <td>${eligHtml}</td>
-          </tr>`;
-    }).join('');
-  }
-
-  const msg = document.getElementById('mobilizeMsg');
-  if (msg) {
-    msg.textContent = '';
-    msg.className = 'form-msg';
-  }
-  document.getElementById('mobilizeDonorsModal').classList.add('active');
-}
-window.openMobilizeDonorsModal = openMobilizeDonorsModal;
-
-function closeMobilizeDonorsModal() {
-  document.getElementById('mobilizeDonorsModal').classList.remove('active');
-  activeMobilizeRequestId = null;
-  const msg = document.getElementById('mobilizeMsg');
-  if (msg) {
-    msg.textContent = '';
-    msg.className = 'form-msg';
-  }
-}
-window.closeMobilizeDonorsModal = closeMobilizeDonorsModal;
-
-async function handleBroadcastAppeal() {
-  if (!activeMobilizeRequestId) return;
-  const request = requestsSectionCache.find((item) => Number(item.request_id) === Number(activeMobilizeRequestId));
-  if (!request) return;
-
-  const btn = document.getElementById('btnBroadcastAppeal');
-  const msg = document.getElementById('mobilizeMsg');
-  if (btn) btn.disabled = true;
-  if (msg) {
-    msg.textContent = 'Creating in-app alerts for eligible donors...';
-    msg.className = 'form-msg info';
-  }
-
-  try {
-    const { data, error } = await bloodBank().rpc('notify_eligible_donors', {
-      p_request_id: Number(activeMobilizeRequestId)
-    });
-    if (error) throw error;
-
-    const notified = Number(data?.notified_count || 0);
-    const alreadyNotified = Number(data?.already_notified_count || 0);
-    if (msg) {
-      msg.textContent = notified > 0
-        ? `${notified} eligible donor(s) received an in-app alert.${alreadyNotified ? ` ${alreadyNotified} had already been notified.` : ''}`
-        : (alreadyNotified > 0 ? 'All eligible donors had already been notified for this request.' : 'No eligible and available donors were found.');
-      msg.className = notified > 0 ? 'form-msg success' : 'form-msg info';
-    }
-    if (notified > 0) setTimeout(closeMobilizeDonorsModal, 1800);
-  } catch (err) {
-    if (msg) {
-      msg.textContent = err?.message || 'Failed to create donor alerts.';
-      msg.className = 'form-msg error';
-    }
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-window.handleBroadcastAppeal = handleBroadcastAppeal;
-
 // Request section filters listeners
 const reqStatusEl = document.getElementById('requestStatusFilter');
 if (reqStatusEl) {
@@ -3938,23 +3889,13 @@ if (reqBloodEl) {
     renderRequestsSection();
   });
 }
-const reqTypeEl = document.getElementById('requestTypeFilter');
-if (reqTypeEl) {
-  reqTypeEl.addEventListener('change', (e) => {
-    requestTypeFilterValue = e.target.value;
-    requestsVisibleCount = requestsPageSize;
-    renderRequestsSection();
-  });
-}
 const clearReqBtn = document.getElementById('clearRequestFilters');
 if (clearReqBtn) {
   clearReqBtn.addEventListener('click', () => {
     requestStatusFilterValue = 'all';
     requestBloodTypeFilterValue = 'all';
-    requestTypeFilterValue = 'all';
     if (reqStatusEl) reqStatusEl.value = 'all';
     if (reqBloodEl) reqBloodEl.value = 'all';
-    if (reqTypeEl) reqTypeEl.value = 'all';
     requestsVisibleCount = requestsPageSize;
     renderRequestsSection();
   });
@@ -3997,7 +3938,8 @@ document.querySelectorAll('.nav-item[data-section]').forEach(item => {
   };
 
   // Update header
-  document.querySelector('.header-title p').textContent =
+  const headerSubtitle = document.querySelector('.header-title p');
+  if (headerSubtitle) headerSubtitle.textContent =
     'Welcome back, ' + profile.first_name + ' - here\'s today\'s overview';
   sectionTitles.dashboard.sub = 'Welcome back, ' + profile.first_name + ' - here\'s today\'s overview';
   document.querySelector('.header-profile-avatar').textContent = 'AA';
@@ -4019,7 +3961,8 @@ document.querySelectorAll('.nav-item[data-section]').forEach(item => {
     refreshOverviewStats(),
     refreshOverviewPanels(),
     refreshInventorySection(),
-    refreshRequestsSection()
+    refreshRequestsSection(),
+    refreshBloodDrives()
   ]);
   renderBloodDrivesSection();
   renderReportsSection();
@@ -4281,7 +4224,7 @@ function syncLocationVerification(donor, edited = false) {
     status.value = missing ? 'missing' : 'needs_review';
     status.disabled = true;
     status.querySelector('option[value="verified"]').disabled = true;
-    if (help) help.textContent = `Auto-locked: ${mapElig.reason} Location will be verified automatically upon medical approval.`;
+    if (help) help.textContent = '';
     return;
   }
 
@@ -4511,6 +4454,7 @@ let donorPageSize = 10;
 let donorVisibleCount = 10;
 
 function renderDonorRows() {
+  if (adminRenderBlocked('donors')) return;
   const tbody = document.getElementById('donorTableBody');
   if (!tbody) return;
 
@@ -4607,13 +4551,18 @@ function showLessDonors() {
 }
 window.showLessDonors = showLessDonors;
 
-async function loadDonors() {
+function loadDonors() {
+  return loadAdminSection('donors', loadDonorsData);
+}
+
+async function loadDonorsData() {
   try {
     const { data: donors, error } = await listDonors();
     const tbody = document.getElementById('donorTableBody');
 
     if (error) throw error;
 
+    adminLoadReady('donors');
     donorCache = donors || [];
     donorVisibleCount = donorPageSize; // Reset pagination on fresh load
     setSidebarBadge('donors', donorCache.length);
@@ -5427,7 +5376,7 @@ function renderGlobalSearchSuggestions(query) {
       const bloodType = normalizeBloodType(r.blood_type_needed || r.blood_type || '');
       const reqIdStr = String(r.request_id || r.id || '');
       const reqCode = `REQ-${reqIdStr}`;
-      const status = normalizeRequestStatus(r.status);
+      const status = getRequestDisplayStatus(r);
       const units = Number(r.quantity || r.units_needed || 1);
       const isUrgent = isUrgentRequest(r);
 
@@ -5748,6 +5697,8 @@ let notifFilter = 'all';
 let notifRealtimeChannel = null;
 let notifOwnSubscription = null;
 let notifLoading = false;
+let notificationMutationPending = false;
+let notificationMutationVersion = 0;
 let notifError = '';
 
 const NOTIF_ICONS = {
@@ -5784,6 +5735,8 @@ function mapAdminNotification(row) {
 }
 
 async function loadAdminNotifications({ silent = false } = {}) {
+  if (notificationMutationPending) return;
+  const mutationVersion = notificationMutationVersion;
   if (typeof listMyAdminNotifications !== 'function') {
     notifError = 'Notification service is unavailable.';
     renderNotificationsSection();
@@ -5798,6 +5751,7 @@ async function loadAdminNotifications({ silent = false } = {}) {
 
   try {
     const { data, error } = await listMyAdminNotifications(150);
+    if (mutationVersion !== notificationMutationVersion) return;
     if (error) throw new Error(error.message || 'Failed to load notifications.');
     notificationsStore = (data || [])
       .map(mapAdminNotification)
@@ -5805,7 +5759,7 @@ async function loadAdminNotifications({ silent = false } = {}) {
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     notifError = '';
   } catch (error) {
-    notifError = error?.message || 'Failed to load notifications.';
+    if (mutationVersion === notificationMutationVersion) notifError = error?.message || 'Failed to load notifications.';
   } finally {
     notifLoading = false;
     updateNotifBadge();
@@ -5845,22 +5799,70 @@ async function markAllNotificationsRead() {
   }
 }
 
-async function clearAllNotifications() {
-  if (!notificationsStore.length || typeof deleteAllMyAdminNotifications !== 'function') return;
-  if (!window.confirm('Permanently delete all notifications? This action cannot be undone.')) return;
+let clearingNotifications = false;
+const clearNotificationsDialog = document.getElementById('clearNotificationsDialog');
 
-  const { error } = await deleteAllMyAdminNotifications();
-  if (error) {
-    notifError = error.message || 'Failed to clear notifications.';
-    renderNotificationsSection();
+function clearAllNotifications() {
+  if (!notificationsStore.length || typeof deleteAllMyAdminNotifications !== 'function' || notificationMutationPending) return;
+  document.getElementById('clearNotificationsError').hidden = true;
+  if (!clearNotificationsDialog.open) clearNotificationsDialog.showModal();
+}
+
+clearNotificationsDialog.querySelectorAll('[data-cancel-clear]').forEach(button => {
+  button.addEventListener('click', () => {
+    if (!clearingNotifications) clearNotificationsDialog.close();
+  });
+});
+clearNotificationsDialog.addEventListener('cancel', event => {
+  if (clearingNotifications) event.preventDefault();
+});
+
+function showNotificationActionError(message) {
+  const notice = document.getElementById('notificationActionError');
+  notice.textContent = message;
+  notice.hidden = !message;
+}
+
+async function deleteNotificationsOptimistically(items, deleteRequest, dialog) {
+  if (notificationMutationPending) return;
+  if (navigator.onLine === false) {
+    dialog.close();
+    showNotificationActionError('You’re offline. Connect to the internet, then try deleting again. No notifications were deleted.');
     return;
   }
-
-  notificationsStore = [];
+  notificationMutationPending = true;
+  notificationMutationVersion += 1;
+  const ids = new Set(items.map(item => item.id));
+  notificationsStore = notificationsStore.filter(item => !ids.has(item.id));
+  notifLoading = false;
   notifError = '';
+  showNotificationActionError('');
+  dialog.close();
   updateNotifBadge();
   renderNotificationsSection();
+  document.getElementById('notifFilterBtns')?.querySelector('.active')?.focus();
+  try {
+    const { error } = await deleteRequest();
+    if (error) throw error;
+  } catch (error) {
+    const existing = new Set(notificationsStore.map(item => item.id));
+    notificationsStore = [...notificationsStore, ...items.filter(item => !existing.has(item.id))]
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    showNotificationActionError(navigator.onLine === false
+      ? 'You’re offline. The deletion could not be confirmed, so the notifications were restored. Reconnect and try again.'
+      : 'Could not confirm deletion. The notifications were restored. Please try again.');
+  } finally {
+    notificationMutationPending = false;
+    notificationMutationVersion += 1;
+    updateNotifBadge();
+    renderNotificationsSection();
+  }
 }
+
+document.getElementById('confirmClearNotifications').addEventListener('click', async () => {
+  if (!clearNotificationsDialog.open) return;
+  await deleteNotificationsOptimistically([...notificationsStore], () => deleteAllMyAdminNotifications(), clearNotificationsDialog);
+});
 
 async function markNotifRead(id) {
   const notification = notificationsStore.find(item => item.id === Number(id));
@@ -5909,22 +5911,36 @@ async function openAdminNotification(id) {
   if (marked) navigateFromAdminNotification(notification);
 }
 
-async function dismissNotif(id) {
+let pendingNotificationDeletion = null;
+let deletingNotification = false;
+const deleteNotificationDialog = document.getElementById('deleteNotificationDialog');
+
+function dismissNotif(id) {
   const notification = notificationsStore.find(item => item.id === Number(id));
-  if (!notification || typeof deleteMyNotification !== 'function') return;
-
-  const { error } = await deleteMyNotification(notification.id);
-  if (error) {
-    notifError = error.message || 'Failed to delete notification.';
-    renderNotificationsSection();
-    return;
-  }
-
-  notificationsStore = notificationsStore.filter(item => item.id !== notification.id);
-  notifError = '';
-  updateNotifBadge();
-  renderNotificationsSection();
+  if (!notification || typeof deleteMyNotification !== 'function' || notificationMutationPending) return;
+  pendingNotificationDeletion = notification;
+  document.getElementById('deleteNotificationPreview').textContent = notification.title;
+  document.getElementById('deleteNotificationError').hidden = true;
+  if (!deleteNotificationDialog.open) deleteNotificationDialog.showModal();
 }
+
+deleteNotificationDialog.querySelectorAll('[data-cancel-delete-notification]').forEach(button => {
+  button.addEventListener('click', () => {
+    if (!deletingNotification) deleteNotificationDialog.close();
+  });
+});
+deleteNotificationDialog.addEventListener('cancel', event => {
+  if (deletingNotification) event.preventDefault();
+});
+deleteNotificationDialog.addEventListener('close', () => {
+  pendingNotificationDeletion = null;
+});
+
+document.getElementById('confirmDeleteNotification').addEventListener('click', async () => {
+  if (!pendingNotificationDeletion || !deleteNotificationDialog.open) return;
+  const notification = pendingNotificationDeletion;
+  await deleteNotificationsOptimistically([notification], () => deleteMyNotification(notification.id), deleteNotificationDialog);
+});
 
 function updateNotifStats() {
   const total = notificationsStore.length;
@@ -5975,10 +5991,10 @@ function renderNotificationsSection() {
   const markAllButton = document.getElementById('notifMarkAllReadBtn');
   const clearAllButton = document.getElementById('notifClearAllBtn');
   if (markAllButton) markAllButton.disabled = notifLoading || !notificationsStore.some(item => !item.read);
-  if (clearAllButton) clearAllButton.disabled = notifLoading || notificationsStore.length === 0;
+  if (clearAllButton) clearAllButton.disabled = notificationMutationPending || notifLoading || notificationsStore.length === 0;
 
   if (notifLoading) {
-    feed.innerHTML = renderNotificationEmptyState('Loading notifications...', 'Retrieving the latest administrator alerts.');
+    feed.innerHTML = adminSkeletonMarkup();
     return;
   }
   if (notifError) {
@@ -6010,7 +6026,7 @@ function renderNotificationsSection() {
       <div class="notif-item ${unreadClass} ${criticalClass}" id="notif-${notification.id}"
         role="button" tabindex="0"
         onclick="openAdminNotification(${notification.id})"
-        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openAdminNotification(${notification.id});}">
+        onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openAdminNotification(${notification.id});}">
         <div class="notif-icon-wrap ${meta.cls}">
           <i class="fa-solid ${meta.icon}"></i>
           ${notification.read ? '' : '<span class="notif-unread-dot"></span>'}
@@ -6024,9 +6040,9 @@ function renderNotificationsSection() {
             ${notification.critical ? '<span class="notif-type-tag notif-critical-tag"><i class="fa-solid fa-bolt"></i> Critical</span>' : ''}
           </div>
         </div>
-        <button class="notif-dismiss-btn" onclick="event.stopPropagation();dismissNotif(${notification.id})"
-          title="Delete notification" aria-label="Delete notification">
-          <i class="fa-solid fa-xmark"></i>
+        <button type="button" class="notif-dismiss-btn" ${notificationMutationPending ? 'disabled' : ''} onclick="event.stopPropagation();dismissNotif(${notification.id})"
+          title="Delete notification" aria-label="Delete notification" aria-haspopup="dialog" aria-controls="deleteNotificationDialog">
+          <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
         </button>
       </div>`;
   }).join('');

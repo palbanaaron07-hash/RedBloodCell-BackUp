@@ -1224,7 +1224,7 @@ async function resolveLoginEmail(identifier) {
     if (!error && Array.isArray(data) && data[0]?.email) {
       return data[0].email;
     }
-  } catch (e) {}
+  } catch (e) { }
   return clean;
 }
 
@@ -1835,7 +1835,7 @@ async function updateDonorMapSettings(donorId, payload) {
 async function setMyDonorMapVisibility(showOnMap) {
   if (!SUPABASE_CONFIGURED) return configError();
   try {
-    const { data: user } = await getCurrentUser();
+    const { user } = await getCurrentUser();
     if (!user) return { data: null, error: { message: 'Authentication required.' } };
 
     const { data: donor, error: fetchErr } = await bloodBank()
@@ -2052,64 +2052,64 @@ async function listMyBloodRequests() {
   const normalized = (data || [])
     .filter((row) => !String(row.note || row.notes || '').includes('[DELETED]'))
     .map((row) => {
-    const rawStatus = String(row.status || '').trim().toLowerCase();
-    let normalizedStatus = rawStatus || 'pending';
+      const rawStatus = String(row.status || '').trim().toLowerCase();
+      let normalizedStatus = rawStatus || 'pending';
 
-    // Map variations to standard statuses
-    if (['fulfilled', 'complete', 'completed', 'done'].includes(rawStatus)) {
-      normalizedStatus = 'fulfilled';
-    } else if (['processing', 'in_progress', 'in progress', 'ongoing'].includes(rawStatus)) {
-      normalizedStatus = 'processing';
-    } else if (['pending', 'requested', 'new', 'open'].includes(rawStatus)) {
-      normalizedStatus = 'pending';
-    } else if (['approved'].includes(rawStatus)) {
-      normalizedStatus = 'approved';
-    } else if (['needs_clarification', 'needs clarification'].includes(rawStatus)) {
-      normalizedStatus = 'needs_clarification';
-    } else if (['cancelled', 'canceled'].includes(rawStatus)) {
-      normalizedStatus = 'cancelled';
-    } else if (['rejected', 'declined'].includes(rawStatus)) {
-      normalizedStatus = 'rejected';
-    }
+      // Map variations to standard statuses
+      if (['fulfilled', 'complete', 'completed', 'done'].includes(rawStatus)) {
+        normalizedStatus = 'fulfilled';
+      } else if (['processing', 'in_progress', 'in progress', 'ongoing'].includes(rawStatus)) {
+        normalizedStatus = 'processing';
+      } else if (['pending', 'requested', 'new', 'open'].includes(rawStatus)) {
+        normalizedStatus = 'pending';
+      } else if (['approved'].includes(rawStatus)) {
+        normalizedStatus = 'approved';
+      } else if (['needs_clarification', 'needs clarification'].includes(rawStatus)) {
+        normalizedStatus = 'needs_clarification';
+      } else if (['cancelled', 'canceled'].includes(rawStatus)) {
+        normalizedStatus = 'cancelled';
+      } else if (['rejected', 'declined'].includes(rawStatus)) {
+        normalizedStatus = 'rejected';
+      }
 
-    // Parse structured tags from note field
-    const rawNoteStr = String(row.note || row.notes || '');
-    const hospitalTagMatch = rawNoteStr.match(/\[Hospital:([^\]]+)\]/);
-    const parsedHospital = hospitalTagMatch ? hospitalTagMatch[1].trim() : null;
-    const timeTagMatch = rawNoteStr.match(/\[NeededTime:([^\]]+)\]/);
-    const parsedNeededTime = timeTagMatch ? timeTagMatch[1].trim() : (row.needed_time || row.needed_date || null);
-    const cleanNote = rawNoteStr
-      .replace(/\[Community Crowdsourced\]/g, '')
-      .replace(/\[Hospital:[^\]]+\]/g, '')
-      .replace(/\[NeededTime:[^\]]+\]/g, '')
-      .trim();
+      // Parse structured tags from note field
+      const rawNoteStr = String(row.note || row.notes || '');
+      const hospitalTagMatch = rawNoteStr.match(/\[Hospital:([^\]]+)\]/);
+      const parsedHospital = hospitalTagMatch ? hospitalTagMatch[1].trim() : null;
+      const timeTagMatch = rawNoteStr.match(/\[NeededTime:([^\]]+)\]/);
+      const parsedNeededTime = timeTagMatch ? timeTagMatch[1].trim() : (row.needed_time || row.needed_date || null);
+      const cleanNote = rawNoteStr
+        .replace(/\[Community Crowdsourced\]/g, '')
+        .replace(/\[Hospital:[^\]]+\]/g, '')
+        .replace(/\[NeededTime:[^\]]+\]/g, '')
+        .trim();
 
-    const communityStatus = normalizeCommunityRequestStatus(row);
+      const communityStatus = normalizeCommunityRequestStatus(row);
 
-    return {
-      id: row.request_id,
-      blood_type: normalizeBloodType(row.blood_type_needed),
-      units_needed: Number(row.quantity || 1),
-      urgency: row.urgency_level || 'normal',
-      status: communityStatus,
-      community_status: communityStatus,
-      operational_status: normalizedStatus,
-      status_raw: row.status || 'pending',
-      expires_at: row.expires_at || null,
-      created_at: row.request_date || row.created_at || null,
-      needed_time: parsedNeededTime,
-      hospital: parsedHospital || row.hospital_name || row.hospital || 'Blood Bank',
-      donation_point: parsedHospital || row.hospital_name || row.hospital || 'Blood Bank',
-      notes: cleanNote,
-      raw_note: rawNoteStr,
-      admin_note: row.admin_note || row.admin_message || row.admin_comment || '',
-      request_type: row.request_type || 'unsure',
-      verification_status: row.verification_status || 'pending',
-      hospital_reference: row.hospital_reference || '',
-      recipient_received_at: row.recipient_received_at || null,
-      replacement_campaign: Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : (row.replacement_campaign || null)
-    };
-  });
+      return {
+        id: row.request_id,
+        blood_type: normalizeBloodType(row.blood_type_needed),
+        units_needed: Number(row.quantity || 1),
+        urgency: row.urgency_level || 'normal',
+        status: communityStatus,
+        community_status: communityStatus,
+        operational_status: normalizedStatus,
+        status_raw: row.status || 'pending',
+        expires_at: row.expires_at || null,
+        created_at: row.request_date || row.created_at || null,
+        needed_time: parsedNeededTime,
+        hospital: parsedHospital || row.hospital_name || row.hospital || 'Blood Bank',
+        donation_point: parsedHospital || row.hospital_name || row.hospital || 'Blood Bank',
+        notes: cleanNote,
+        raw_note: rawNoteStr,
+        admin_note: row.admin_note || row.admin_message || row.admin_comment || '',
+        request_type: row.request_type || 'unsure',
+        verification_status: row.verification_status || 'pending',
+        hospital_reference: row.hospital_reference || '',
+        recipient_received_at: row.recipient_received_at || null,
+        replacement_campaign: Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : (row.replacement_campaign || null)
+      };
+    });
 
   const requestIds = normalized.map((request) => request.id);
   const [supportResult, pledgeResult, docsResult] = await Promise.all([
@@ -2267,73 +2267,73 @@ async function listCommunityBloodRequests() {
     const normalized = requestsData
       .filter((row) => !String(row.note || row.notes || row.description || '').includes('[DELETED]'))
       .map((row, idx) => {
-      const patient = row.patient || {};
-      const rawStatus = String(row.status || '').trim().toLowerCase();
-      let normalizedStatus = rawStatus || 'pending';
-      if (['fulfilled', 'complete', 'completed', 'done'].includes(rawStatus)) {
-        normalizedStatus = 'fulfilled';
-      } else if (['processing', 'in_progress', 'in progress', 'ongoing'].includes(rawStatus)) {
-        normalizedStatus = 'processing';
-      } else if (['approved'].includes(rawStatus)) {
-        normalizedStatus = 'approved';
-      } else if (['needs_clarification', 'needs clarification'].includes(rawStatus)) {
-        normalizedStatus = 'needs_clarification';
-      } else if (['cancelled', 'canceled'].includes(rawStatus)) {
-        normalizedStatus = 'cancelled';
-      } else if (['rejected', 'declined'].includes(rawStatus)) {
-        normalizedStatus = 'rejected';
-      } else {
-        normalizedStatus = 'pending';
-      }
+        const patient = row.patient || {};
+        const rawStatus = String(row.status || '').trim().toLowerCase();
+        let normalizedStatus = rawStatus || 'pending';
+        if (['fulfilled', 'complete', 'completed', 'done'].includes(rawStatus)) {
+          normalizedStatus = 'fulfilled';
+        } else if (['processing', 'in_progress', 'in progress', 'ongoing'].includes(rawStatus)) {
+          normalizedStatus = 'processing';
+        } else if (['approved'].includes(rawStatus)) {
+          normalizedStatus = 'approved';
+        } else if (['needs_clarification', 'needs clarification'].includes(rawStatus)) {
+          normalizedStatus = 'needs_clarification';
+        } else if (['cancelled', 'canceled'].includes(rawStatus)) {
+          normalizedStatus = 'cancelled';
+        } else if (['rejected', 'declined'].includes(rawStatus)) {
+          normalizedStatus = 'rejected';
+        } else {
+          normalizedStatus = 'pending';
+        }
 
-      const patientName = [patient.first_name, patient.last_name].filter(Boolean).join(' ') ||
-        row.patient_name ||
-        row.requester_name ||
-        `Community Recipient #${row.patient_id || row.request_id || (idx + 1)}`;
+        const patientName = [patient.first_name, patient.last_name].filter(Boolean).join(' ') ||
+          row.patient_name ||
+          row.requester_name ||
+          `Community Recipient #${row.patient_id || row.request_id || (idx + 1)}`;
 
-      // Parse structured tags from note field
-      const rawNoteStr = String(row.note || row.notes || row.description || '');
-      const hospitalTagMatch = rawNoteStr.match(/\[Hospital:([^\]]+)\]/);
-      const parsedHospital = hospitalTagMatch ? hospitalTagMatch[1].trim() : null;
-      const timeTagMatch = rawNoteStr.match(/\[NeededTime:([^\]]+)\]/);
-      const parsedNeededTime = timeTagMatch ? timeTagMatch[1].trim() : (row.needed_time || row.needed_date || null);
-      const cleanNote = rawNoteStr
-        .replace(/\[Community Crowdsourced\]/g, '')
-        .replace(/\[Hospital:[^\]]+\]/g, '')
-        .replace(/\[NeededTime:[^\]]+\]/g, '')
-        .trim() || 'Blood transfusion support requested for hospitalized patient.';
+        // Parse structured tags from note field
+        const rawNoteStr = String(row.note || row.notes || row.description || '');
+        const hospitalTagMatch = rawNoteStr.match(/\[Hospital:([^\]]+)\]/);
+        const parsedHospital = hospitalTagMatch ? hospitalTagMatch[1].trim() : null;
+        const timeTagMatch = rawNoteStr.match(/\[NeededTime:([^\]]+)\]/);
+        const parsedNeededTime = timeTagMatch ? timeTagMatch[1].trim() : (row.needed_time || row.needed_date || null);
+        const cleanNote = rawNoteStr
+          .replace(/\[Community Crowdsourced\]/g, '')
+          .replace(/\[Hospital:[^\]]+\]/g, '')
+          .replace(/\[NeededTime:[^\]]+\]/g, '')
+          .trim() || 'Blood transfusion support requested for hospitalized patient.';
 
-      const hospital = parsedHospital || row.hospital_name || patient.hospital_name || patient.address || 'Metro Health Center';
-      const urgency = String(row.urgency_level || row.urgency || 'normal').toLowerCase();
-      const rawDate = row.request_date || row.created_at || new Date().toISOString();
-      const communityStatus = normalizeCommunityRequestStatus(row);
+        const hospital = parsedHospital || row.hospital_name || patient.hospital_name || patient.address || 'Metro Health Center';
+        const urgency = String(row.urgency_level || row.urgency || 'normal').toLowerCase();
+        const rawDate = row.request_date || row.created_at || new Date().toISOString();
+        const communityStatus = normalizeCommunityRequestStatus(row);
 
-      return {
-        id: row.request_id || row.id || idx + 1,
-        patient_id: row.patient_id || null,
-        requester_name: patientName,
-        patient_phone: patient.contact_number || row.contact_number || null,
-        blood_type: normalizeBloodType(row.blood_type_needed || row.blood_type || 'O+'),
-        units_needed: Number(row.quantity || row.units_needed || 1),
-        urgency: urgency,
-        status: communityStatus,
-        community_status: communityStatus,
-        operational_status: normalizedStatus,
-        status_raw: row.status || 'pending',
-        expires_at: row.expires_at || null,
-        created_at: rawDate,
-        needed_time: parsedNeededTime,
-        hospital: hospital,
-        donation_point: hospital,
-        notes: cleanNote,
-        admin_note: row.admin_note || row.admin_message || row.admin_comment || '',
-        request_type: row.request_type || 'unsure',
-        verification_status: row.verification_status || 'pending',
-        hospital_reference: row.hospital_reference || '',
-        recipient_received_at: row.recipient_received_at || null,
-        replacement_campaign: Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : (row.replacement_campaign || null)
-      };
-    });
+        return {
+          id: row.request_id || row.id || idx + 1,
+          patient_id: row.patient_id || null,
+          requester_name: patientName,
+          patient_phone: patient.contact_number || row.contact_number || null,
+          blood_type: normalizeBloodType(row.blood_type_needed || row.blood_type || 'O+'),
+          units_needed: Number(row.quantity || row.units_needed || 1),
+          urgency: urgency,
+          status: communityStatus,
+          community_status: communityStatus,
+          operational_status: normalizedStatus,
+          status_raw: row.status || 'pending',
+          expires_at: row.expires_at || null,
+          created_at: rawDate,
+          needed_time: parsedNeededTime,
+          hospital: hospital,
+          donation_point: hospital,
+          notes: cleanNote,
+          admin_note: row.admin_note || row.admin_message || row.admin_comment || '',
+          request_type: row.request_type || 'unsure',
+          verification_status: row.verification_status || 'pending',
+          hospital_reference: row.hospital_reference || '',
+          recipient_received_at: row.recipient_received_at || null,
+          replacement_campaign: Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : (row.replacement_campaign || null)
+        };
+      });
 
     return { data: normalized, error: null };
   } catch (err) {
@@ -2543,26 +2543,21 @@ async function createBloodRequest(payload) {
   }
 
   if (!error && data?.request_id) {
-    const supportResult = await saveRequestVerificationSupport(
-      data.request_id,
-      payload.facility_contact,
-      null
-    );
-    if (supportResult.error) {
-      return { data, error: null, warning: supportResult.error.message };
-    }
+    // Save independently: a contact failure must not discard selected documents.
+    const [supportResult, docResult] = await Promise.all([
+      saveRequestVerificationSupport(data.request_id, payload.facility_contact, null)
+        .catch((error) => ({ error })),
+      documentValidation.files.length
+        ? saveRequestSupportingDocuments(data.request_id, documentValidation.files)
+          .catch((error) => ({ error }))
+        : Promise.resolve({ data: [], error: null })
+    ]);
     if (supportResult.data) data.verification_support = supportResult.data;
-
-    if (documentValidation.files && documentValidation.files.length > 0) {
-      const docResult = await saveRequestSupportingDocuments(
-        data.request_id,
-        documentValidation.files
-      );
-      if (docResult.error) {
-        return { data, error: null, warning: docResult.error.message };
-      }
-      data.supporting_documents = docResult.data || [];
-    }
+    if (!docResult.error) data.supporting_documents = docResult.data || [];
+    const warnings = [];
+    if (supportResult.error) warnings.push(`Facility contact was not saved: ${supportResult.error.message || 'Please contact the coordinator.'}`);
+    if (docResult.error) warnings.push(`Supporting documents were not saved: ${docResult.error.message || 'Please contact the coordinator.'}`);
+    if (warnings.length) return { data, error: null, warning: warnings.join(' ') };
   }
 
   return { data, error };
